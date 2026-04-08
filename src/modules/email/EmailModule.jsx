@@ -94,6 +94,7 @@ export default function EmailModule() {
   const [csvRows,     setCsvRows]     = useState([]);
   const [emailCol,    setEmailCol]    = useState("");
   const [csvFileName, setCsvFileName] = useState(null);
+  const [csvFile,     setCsvFile]     = useState(null); // raw File object for N8N
   const [verEmails,   setVerEmails]   = useState([]);
   const [apiMode,     setApiMode]     = useState("bouncer");
   const [bouncerKey,  setBouncerKey]  = useState(import.meta.env.VITE_BOUNCER_API_KEY || "");
@@ -112,6 +113,7 @@ export default function EmailModule() {
   const onCsvFile = (file) => {
     if (!file) return;
     setCsvFileName(file.name);
+    setCsvFile(file); // keep raw File for N8N upload
     const reader = new FileReader();
     reader.onload = (e) => {
       const { headers, rows } = parseCsv(e.target.result);
@@ -145,16 +147,34 @@ export default function EmailModule() {
   };
 
   const verifyN8N = async () => {
-    setProgress(30);
+    setProgress(20);
+
+    // Build the CSV file to send:
+    // - If the user uploaded a CSV → send the original file (full CSV with all columns)
+    // - Otherwise (paste or generated emails) → build a minimal CSV with just "email" column
+    let fileToSend;
+    if (inputTab === "csv" && csvFile) {
+      fileToSend = csvFile; // original upload
+    } else {
+      const csvContent = ["email", ...verEmails].join("\n");
+      fileToSend = new File([csvContent], "emails.csv", { type: "text/csv" });
+    }
+
+    const formData = new FormData();
+    formData.append("file", fileToSend);
+    formData.append("email_column", emailCol || "email"); // column name N8N should look at
+    formData.append("total_emails", verEmails.length);
+
+    setProgress(40);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 120000);
     const res = await fetch(webhookUrl.trim(), {
-      method: "POST", signal: controller.signal,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ emails: verEmails }),
+      method: "POST",
+      signal: controller.signal,
+      body: formData, // browser sets Content-Type: multipart/form-data automatically
     });
     clearTimeout(timeout);
-    setProgress(90);
+    setProgress(85);
     if (!res.ok) throw new Error(`Error HTTP ${res.status} desde N8N.`);
     const data = await res.json();
     const list = Array.isArray(data) ? data : (data.results ?? data.data ?? []);
@@ -404,7 +424,14 @@ export default function EmailModule() {
                     <input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} placeholder="https://tu-n8n.com/webhook/verification"
                       className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono" />
                     <p className="text-xs text-gray-400 mt-1.5">
-                      El webhook recibirá <code className="bg-gray-100 px-1 rounded">{"{ emails: [...] }"}</code> y debe devolver un array con <code className="bg-gray-100 px-1 rounded">status</code>, <code className="bg-gray-100 px-1 rounded">reason</code> y <code className="bg-gray-100 px-1 rounded">score</code> por email.
+                      N8N recibirá un <strong>multipart/form-data</strong> con tres campos:
+                      <br />· <code className="bg-gray-100 px-1 rounded">file</code> — CSV con los emails
+                      {inputTab === "csv" && csvFile
+                        ? <span className="text-indigo-500"> (tu archivo original: <em>{csvFile.name}</em>)</span>
+                        : <span className="text-indigo-500"> (generado automáticamente con columna "email")</span>}
+                      <br />· <code className="bg-gray-100 px-1 rounded">email_column</code> — nombre de la columna a usar
+                      <br />· <code className="bg-gray-100 px-1 rounded">total_emails</code> — cantidad de emails
+                      <br />Debe devolver un array con <code className="bg-gray-100 px-1 rounded">email</code>, <code className="bg-gray-100 px-1 rounded">status</code>, <code className="bg-gray-100 px-1 rounded">reason</code> y <code className="bg-gray-100 px-1 rounded">score</code> por cada fila.
                     </p>
                   </div>
                 )}
