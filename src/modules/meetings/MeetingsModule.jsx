@@ -12,7 +12,11 @@ export default function MeetingsModule() {
   const [analyzing,     setAnalyzing]     = useState(false);
   const [analysis,      setAnalysis]      = useState(null);
   const [analysisError, setAnalysisError] = useState(null);
+  const [webhookUrl,    setWebhookUrl]    = useState(import.meta.env.VITE_N8N_MEETINGS_WEBHOOK || "");
   const inputRef = useRef();
+
+  // Whether to use N8N or call Claude directly
+  const useN8N = webhookUrl.trim().length > 0;
 
   const readFile = (file) => {
     setError(null); setAnalysis(null);
@@ -26,7 +30,37 @@ export default function MeetingsModule() {
   const onDrop = (e) => { e.preventDefault(); setDragging(false); readFile(e.dataTransfer.files[0]); };
   const clear  = () => { setTranscript(null); setFileName(null); setError(null); setAnalysis(null); setAnalysisError(null); };
 
-  const analizar = async () => {
+  // ── Análisis via N8N ──────────────────────────────────────
+  const analizarN8N = async () => {
+    setAnalyzing(true); setAnalysisError(null); setAnalysis(null);
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 120000);
+      const res = await fetch(webhookUrl.trim(), {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transcripcion: transcript,
+          nombre_archivo: fileName,
+          system_prompt: meetingPrompt,
+        }),
+      });
+      clearTimeout(timeout);
+      if (!res.ok) { setAnalysisError(`Error HTTP ${res.status} desde N8N.`); return; }
+      const data = await res.json();
+      // Accept { analysis: "..." }, { resultado: "..." }, { output: "..." } or a plain string
+      const text = typeof data === "string"
+        ? data
+        : data.analysis ?? data.resultado ?? data.output ?? data.text ?? JSON.stringify(data, null, 2);
+      setAnalysis(text);
+    } catch (e) {
+      setAnalysisError(e.name === "AbortError" ? "Timeout: N8N tardó más de 2 minutos." : `Error de red: ${e.message}`);
+    } finally { setAnalyzing(false); }
+  };
+
+  // ── Análisis via Claude API directo ───────────────────────
+  const analizarClaude = async () => {
     setAnalyzing(true); setAnalysisError(null); setAnalysis(null);
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -47,18 +81,21 @@ export default function MeetingsModule() {
       if (!res.ok) { setAnalysisError(`Error HTTP ${res.status}`); return; }
       const data = await res.json();
       if (data.error) { setAnalysisError(`${data.error.type}: ${data.error.message}`); return; }
-      const raw = data.content?.find(b => b.type === "text")?.text || "";
-      setAnalysis(raw);
+      setAnalysis(data.content?.find(b => b.type === "text")?.text || "");
     } catch (e) {
       setAnalysisError(`Error de red: ${e.message}`);
     } finally { setAnalyzing(false); }
   };
+
+  const analizar = () => useN8N ? analizarN8N() : analizarClaude();
 
   const wordCount = transcript ? transcript.trim().split(/\s+/).length : 0;
   const lineCount = transcript ? transcript.split("\n").length : 0;
 
   return (
     <div className="px-8 py-6 max-w-3xl w-full space-y-5">
+
+      {/* ── Cargar archivo ── */}
       {!transcript && (
         <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
@@ -83,6 +120,7 @@ export default function MeetingsModule() {
         </section>
       )}
 
+      {/* ── Archivo cargado ── */}
       {transcript && (
         <>
           <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -104,6 +142,24 @@ export default function MeetingsModule() {
                 <button onClick={clear} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-all">
                   <X size={11} /> Quitar
                 </button>
+              </div>
+            </div>
+
+            {/* Modo activo + webhook config */}
+            <div className="px-6 pb-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${useN8N ? "bg-violet-50 text-violet-600 border border-violet-100" : "bg-indigo-50 text-indigo-600 border border-indigo-100"}`}>
+                  {useN8N ? "⚡ Via N8N" : "🤖 Claude directo"}
+                </span>
+                <span className="text-xs text-gray-400">{useN8N ? "El análisis lo procesa tu workflow de N8N" : "Llama directamente a la API de Claude"}</span>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1">
+                  Webhook N8N <span className="normal-case font-normal text-gray-300">(opcional — si está vacío usa Claude directo)</span>
+                </label>
+                <input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)}
+                  placeholder="https://tu-n8n.com/webhook/meetings"
+                  className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono" />
               </div>
             </div>
           </section>
