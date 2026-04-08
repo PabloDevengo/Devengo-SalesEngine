@@ -1,0 +1,6 @@
+[
+  { "key": "micro",      "label": "Micro",    "sub": "1–10"   },
+  { "key": "small",      "label": "Pequeña",  "sub": "10–50"  },
+  { "key": "mid",        "label": "Mediana",  "sub": "50–500" },
+  { "key": "enterprise", "label": "Grande",   "sub": "500+"   }
+]
