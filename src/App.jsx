@@ -7,8 +7,9 @@ import KnowledgeModule  from "./modules/knowledge/KnowledgeModule";
 import EmailModule      from "./modules/email/EmailModule";
 import CampaignModule   from "./modules/campaigns/CampaignModule";
 import ProspectModule   from "./modules/prospecting/ProspectModule";
-import MeetingsModule   from "./modules/meetings/MeetingsModule";
-import ConfigModule     from "./modules/config/ConfigModule";
+import MeetingsModule      from "./modules/meetings/MeetingsModule";
+import VerificationModule from "./modules/verification/VerificationModule";
+import ConfigModule       from "./modules/config/ConfigModule";
 
 function AppContent() {
   const [activeModule, setActiveModule] = useState("knowledge");
@@ -24,8 +25,9 @@ function AppContent() {
           {activeModule === "email"     && <EmailModule />}
           {activeModule === "campaigns" && <CampaignModule />}
           {activeModule === "prospect"  && <ProspectModule />}
-          {activeModule === "meetings"  && <MeetingsModule />}
-          {activeModule === "config"    && <ConfigModule />}
+          {activeModule === "meetings"      && <MeetingsModule />}
+          {activeModule === "verification" && <VerificationModule />}
+          {activeModule === "config"        && <ConfigModule />}
         </div>
       </main>
     </div>

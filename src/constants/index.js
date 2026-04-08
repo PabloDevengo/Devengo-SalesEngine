@@ -7,8 +7,9 @@ export const NAV_ITEMS = [
   { id: "email",     label: "Email Generator", icon: "✉️" },
   { id: "prospect",  label: "Prospección",     icon: "🔍" },
   { id: "campaigns", label: "Campañas",         icon: "📣" },
-  { id: "meetings",  label: "Reuniones",        icon: "🎙️" },
-  { id: "config",    label: "Configuración",    icon: "⚙️" },
+  { id: "meetings",      label: "Reuniones",        icon: "🎙️" },
+  { id: "verification", label: "Verificación",    icon: "✅" },
+  { id: "config",       label: "Configuración",   icon: "⚙️" },
 ];
 
 export const MODULE_TITLES = {
@@ -16,8 +17,9 @@ export const MODULE_TITLES = {
   email:     { title: "Email Generator", sub: "Genera combinaciones de email ordenadas por probabilidad" },
   prospect:  { title: "Prospección",     sub: "Gestiona y enriquece tu pipeline de prospectos" },
   campaigns: { title: "Campañas",        sub: "Genera secuencias de outbound con IA" },
-  meetings:  { title: "Reuniones",       sub: "Transcripciones e inteligencia de reuniones" },
-  config:    { title: "Configuración",   sub: "Ajustes y prompts de la aplicación" },
+  meetings:     { title: "Reuniones",     sub: "Transcripciones e inteligencia de reuniones" },
+  verification: { title: "Verificación", sub: "Comprueba la deliverability de tus emails con Bouncer" },
+  config:       { title: "Configuración", sub: "Ajustes y prompts de la aplicación" },
 };
 
 export const EMPTY_COMPANY = {
