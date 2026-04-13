@@ -249,7 +249,7 @@ export default function ProspectModule() {
   };
 
   return (
-    <div className="px-8 py-6 max-w-3xl w-full space-y-5">
+    <div className="px-8 py-6 max-w-5xl w-full space-y-5">
 
       {/* ── Formulario ── */}
       <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -416,77 +416,62 @@ export default function ProspectModule() {
             <div className="px-6 py-10 text-center">
               <p className="text-sm text-gray-400">N8N respondió pero no devolvió resultados.</p>
             </div>
-          ) : companies.length > 0 ? (
-            // Rich company cards
-            <div className="divide-y divide-gray-50">
-              {companies.map((company, idx) => (
-                <div key={company.domain ?? idx} className="px-6 py-4 hover:bg-gray-50 transition-colors group">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 min-w-0">
-                      <span className="text-xs text-gray-300 font-mono w-5 shrink-0 text-right mt-0.5">{idx + 1}</span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-gray-800">{company.name ?? company.domain}</p>
-                          <span className="text-xs text-gray-400 font-mono">{company.domain}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-400">
-                          {company.employeeCount != null && (
-                            <span>👥 {company.employeeCount} empleados</span>
-                          )}
-                          {company.revenue && (
-                            <span>💰 {company.revenue}</span>
-                          )}
-                          {(company.countries ?? []).length > 0 && (
-                            <span>📍 {company.countries.join(", ").toUpperCase()}</span>
-                          )}
-                        </div>
-                        {(company.industries ?? []).length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {company.industries.slice(0, 4).map(ind => (
-                              <span key={ind} className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{ind}</span>
-                            ))}
-                            {company.industries.length > 4 && (
-                              <span className="text-xs text-gray-400">+{company.industries.length - 4}</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0 mt-0.5">
-                      <a href={`https://${company.domain}`} target="_blank" rel="noreferrer"
-                        className="flex items-center gap-1 text-xs text-gray-300 hover:text-indigo-600 px-2 py-1 rounded hover:bg-indigo-50">
-                        <ExternalLink size={11} />
-                      </a>
-                      <button onClick={() => copyDomain(company.domain, idx)}
-                        className="flex items-center gap-1 text-xs text-gray-300 hover:text-indigo-600 px-2 py-1 rounded hover:bg-indigo-50">
-                        <Copy size={11} />{copied === idx ? "✓" : "Copiar"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           ) : (
-            // Fallback: plain domain list
-            <div className="divide-y divide-gray-50">
-              {companyDomains.map((domain, idx) => (
-                <div key={domain} className="px-6 py-3 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors group">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-xs text-gray-300 font-mono w-5 shrink-0 text-right">{idx + 1}</span>
-                    <p className="text-sm font-medium text-gray-800 truncate">{domain}</p>
-                  </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                    <a href={`https://${domain}`} target="_blank" rel="noreferrer"
-                      className="flex items-center gap-1 text-xs text-gray-300 hover:text-indigo-600 px-2 py-1 rounded hover:bg-indigo-50">
-                      <ExternalLink size={11} />
-                    </a>
-                    <button onClick={() => copyDomain(domain, idx)}
-                      className="flex items-center gap-1 text-xs text-gray-300 hover:text-indigo-600 px-2 py-1 rounded hover:bg-indigo-50">
-                      <Copy size={11} />{copied === idx ? "✓" : "Copiar"}
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5 w-8">#</th>
+                    <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Empresa</th>
+                    <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Industrias</th>
+                    <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Revenue</th>
+                    <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Empleados</th>
+                    <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">País</th>
+                    <th className="px-4 py-2.5 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {(companies.length > 0 ? companies : companyDomains.map(d => ({ domain: d }))).map((company, idx) => (
+                    <tr key={company.domain ?? idx} className="hover:bg-gray-50 transition-colors group">
+                      <td className="px-4 py-3 text-xs text-gray-300 font-mono">{idx + 1}</td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-800 leading-tight">{company.name ?? company.domain}</p>
+                        {company.name && (
+                          <a href={`https://${company.domain}`} target="_blank" rel="noreferrer"
+                            className="text-xs text-gray-400 hover:text-indigo-600 font-mono">
+                            {company.domain}
+                          </a>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {(company.industries ?? []).slice(0, 3).map(ind => (
+                            <span key={ind} className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{ind}</span>
+                          ))}
+                          {(company.industries ?? []).length > 3 && (
+                            <span className="text-xs text-gray-400">+{company.industries.length - 3}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-600">{company.revenue ?? "—"}</td>
+                      <td className="px-4 py-3 text-xs text-gray-600">{company.employeeCount != null ? company.employeeCount : "—"}</td>
+                      <td className="px-4 py-3 text-xs text-gray-600 uppercase">{(company.countries ?? []).join(", ") || "—"}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <a href={`https://${company.domain}`} target="_blank" rel="noreferrer"
+                            className="text-gray-300 hover:text-indigo-600 p-1 rounded hover:bg-indigo-50">
+                            <ExternalLink size={11} />
+                          </a>
+                          <button onClick={() => copyDomain(company.domain, idx)}
+                            className="text-gray-300 hover:text-indigo-600 p-1 rounded hover:bg-indigo-50 text-xs">
+                            {copied === idx ? "✓" : <Copy size={11} />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </section>
