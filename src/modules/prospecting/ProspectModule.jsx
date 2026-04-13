@@ -173,16 +173,21 @@ export default function ProspectModule() {
     ? SURFE_INDUSTRIES.filter(i => i.toLowerCase().includes(industriaInput.toLowerCase()) && !industries.includes(i)).slice(0, 8)
     : [];
 
-  const buildPayload = () => ({
-    tipo: "empresa",
-    industries,
-    geografias: geos,
-    tamanos: tamanosSel,
-    revenues,
-    lookalike: lookalike || null,
-    lookalike_data: lookalike ? clientes.find(c => c.nombre === lookalike) || null : null,
-    num_resultados: numResults,
-  });
+  const buildPayload = () => {
+    const payload = {
+      tipo: "empresa",
+      industries,
+      geografias: geos,
+      tamanos: tamanosSel,
+      revenues,
+      num_resultados: numResults,
+    };
+    if (lookalike) {
+      payload.lookalike = lookalike;
+      payload.lookalike_data = clientes.find(c => c.nombre === lookalike) || null;
+    }
+    return payload;
+  };
 
   const payloadJson = JSON.stringify(buildPayload(), null, 2);
   const canSend = industries.length > 0 || lookalike;
