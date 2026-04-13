@@ -203,29 +203,41 @@ export default function ProspectModule() {
       clearTimeout(timeout);
       if (!res.ok) { setError(`Error HTTP ${res.status} desde N8N.`); return; }
       const data = await res.json();
-      // Parse response: expects [{ companies: { domains: [...] }, limit: N }]
-      const domains = Array.isArray(data)
-        ? (data[0]?.companies?.domains ?? [])
-        : (data?.companies?.domains ?? []);
-      setResultado({ domains, raw: data });
+      const root = Array.isArray(data) ? data[0] : data;
+      const companies    = root?.companies    ?? [];
+      const companyDomains = root?.companyDomains ?? companies.map(c => c.domain).filter(Boolean);
+      setResultado({ companies, companyDomains, raw: data });
     } catch (e) {
       setError(e.name === "AbortError" ? "Timeout: N8N tardó más de 90s." : `Error de red: ${e.message}`);
     } finally { setLoading(false); }
   };
 
   // ── Result helpers ────────────────────────────────────────
-  const domains = resultado?.domains ?? [];
+  const companies      = resultado?.companies      ?? [];
+  const companyDomains = resultado?.companyDomains ?? [];
 
   const copyDomain = (d, idx) => {
     navigator.clipboard.writeText(d).catch(() => {});
     setCopied(idx); setTimeout(() => setCopied(null), 1500);
   };
   const copyAllDomains = () => {
-    navigator.clipboard.writeText(domains.join("\n")).catch(() => {});
+    navigator.clipboard.writeText(companyDomains.join("\n")).catch(() => {});
     setCopied("all"); setTimeout(() => setCopied(null), 1500);
   };
   const downloadCsv = () => {
-    const csv = ["#,dominio", ...domains.map((d, i) => `${i + 1},${d}`)].join("\n");
+    const headers = "#,nombre,dominio,industrias,revenue,empleados,paises";
+    const rows = companies.length > 0
+      ? companies.map((c, i) => [
+          i + 1,
+          `"${c.name ?? ""}"`,
+          c.domain ?? "",
+          `"${(c.industries ?? []).join("; ")}"`,
+          c.revenue ?? "",
+          c.employeeCount ?? "",
+          `"${(c.countries ?? []).join("; ")}"`,
+        ].join(","))
+      : companyDomains.map((d, i) => `${i + 1},,${d},,,,`);
+    const csv = [headers, ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a"); a.href = url; a.download = "prospectos.csv"; a.click(); URL.revokeObjectURL(url);
@@ -385,7 +397,7 @@ export default function ProspectModule() {
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-gray-800">Resultados</h2>
-              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{domains.length} empresas</span>
+              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{companyDomains.length} empresas</span>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={downloadJson} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-all">
@@ -400,13 +412,64 @@ export default function ProspectModule() {
             </div>
           </div>
 
-          {domains.length === 0 ? (
+          {companyDomains.length === 0 ? (
             <div className="px-6 py-10 text-center">
-              <p className="text-sm text-gray-400">N8N respondió pero no devolvió dominios.</p>
+              <p className="text-sm text-gray-400">N8N respondió pero no devolvió resultados.</p>
+            </div>
+          ) : companies.length > 0 ? (
+            // Rich company cards
+            <div className="divide-y divide-gray-50">
+              {companies.map((company, idx) => (
+                <div key={company.domain ?? idx} className="px-6 py-4 hover:bg-gray-50 transition-colors group">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <span className="text-xs text-gray-300 font-mono w-5 shrink-0 text-right mt-0.5">{idx + 1}</span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-gray-800">{company.name ?? company.domain}</p>
+                          <span className="text-xs text-gray-400 font-mono">{company.domain}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-400">
+                          {company.employeeCount != null && (
+                            <span>👥 {company.employeeCount} empleados</span>
+                          )}
+                          {company.revenue && (
+                            <span>💰 {company.revenue}</span>
+                          )}
+                          {(company.countries ?? []).length > 0 && (
+                            <span>📍 {company.countries.join(", ").toUpperCase()}</span>
+                          )}
+                        </div>
+                        {(company.industries ?? []).length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {company.industries.slice(0, 4).map(ind => (
+                              <span key={ind} className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{ind}</span>
+                            ))}
+                            {company.industries.length > 4 && (
+                              <span className="text-xs text-gray-400">+{company.industries.length - 4}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0 mt-0.5">
+                      <a href={`https://${company.domain}`} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-1 text-xs text-gray-300 hover:text-indigo-600 px-2 py-1 rounded hover:bg-indigo-50">
+                        <ExternalLink size={11} />
+                      </a>
+                      <button onClick={() => copyDomain(company.domain, idx)}
+                        className="flex items-center gap-1 text-xs text-gray-300 hover:text-indigo-600 px-2 py-1 rounded hover:bg-indigo-50">
+                        <Copy size={11} />{copied === idx ? "✓" : "Copiar"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
+            // Fallback: plain domain list
             <div className="divide-y divide-gray-50">
-              {domains.map((domain, idx) => (
+              {companyDomains.map((domain, idx) => (
                 <div key={domain} className="px-6 py-3 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors group">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-xs text-gray-300 font-mono w-5 shrink-0 text-right">{idx + 1}</span>
