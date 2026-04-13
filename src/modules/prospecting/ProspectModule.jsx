@@ -3,41 +3,53 @@ import { Zap, Copy, Download, ExternalLink } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { useData } from "../../utils/dataLoader";
 
+const REVENUES = ["0-1M", "1-10M", "10-50M", "50-100M", "100-500M", "500M+"];
+
 export default function ProspectModule() {
   const { clientes } = useApp();
   const { data: geografias = [] } = useData("geografias");
   const { data: tamanos    = [] } = useData("tamanos");
 
-  const [industria,  setIndustria]  = useState("");
-  const [geos,       setGeos]       = useState(["España"]);
-  const [tamanosSel, setTamanosSel] = useState([]);
-  const [keywords,   setKeywords]   = useState("");
-  const [lookalike,  setLookalike]  = useState("");
-  const [numResults, setNumResults] = useState(20);
-  const [webhookUrl, setWebhookUrl] = useState(import.meta.env.VITE_N8N_PROSPECT_WEBHOOK || "");
-  const [showJson,   setShowJson]   = useState(false);
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState(null);
-  const [copied,     setCopied]     = useState(false);
-  const [resultado,  setResultado]  = useState(null); // parsed N8N response
+  const [industries,     setIndustries]     = useState([]);
+  const [industriaInput, setIndustriaInput] = useState("");
+  const [geos,           setGeos]           = useState(["España"]);
+  const [tamanosSel,     setTamanosSel]     = useState([]);
+  const [revenues,       setRevenues]       = useState([]);
+  const [lookalike,      setLookalike]      = useState("");
+  const [numResults,     setNumResults]     = useState(20);
+  const [webhookUrl,     setWebhookUrl]     = useState(import.meta.env.VITE_N8N_PROSPECT_WEBHOOK || "");
+  const [showJson,       setShowJson]       = useState(false);
+  const [loading,        setLoading]        = useState(false);
+  const [error,          setError]          = useState(null);
+  const [copied,         setCopied]         = useState(false);
+  const [resultado,      setResultado]      = useState(null);
 
-  const toggleGeo    = (g) => setGeos(gs => gs.includes(g) ? gs.filter(x => x !== g) : [...gs, g]);
-  const toggleTamano = (t) => setTamanosSel(ts => ts.includes(t) ? ts.filter(x => x !== t) : [...ts, t]);
+  const toggleGeo     = (g) => setGeos(gs => gs.includes(g) ? gs.filter(x => x !== g) : [...gs, g]);
+  const toggleTamano  = (t) => setTamanosSel(ts => ts.includes(t) ? ts.filter(x => x !== t) : [...ts, t]);
+  const toggleRevenue = (r) => setRevenues(rs => rs.includes(r) ? rs.filter(x => x !== r) : [...rs, r]);
   const clientesPublicos = clientes.filter(c => c.visibilidad === "publico");
+
+  const addIndustria = () => {
+    const val = industriaInput.trim();
+    if (val && !industries.includes(val)) setIndustries(prev => [...prev, val]);
+    setIndustriaInput("");
+  };
+  const removeIndustria = (ind) => setIndustries(prev => prev.filter(x => x !== ind));
+  const handleIndustriaKey = (e) => { if (e.key === "Enter") { e.preventDefault(); addIndustria(); } };
 
   const buildPayload = () => ({
     tipo: "empresa",
-    industria: industria.trim() || null,
+    industries,
     geografias: geos,
     tamanos: tamanosSel,
-    keywords: keywords.trim() || null,
+    revenues,
     lookalike: lookalike || null,
     lookalike_data: lookalike ? clientes.find(c => c.nombre === lookalike) || null : null,
     num_resultados: numResults,
   });
 
   const payloadJson = JSON.stringify(buildPayload(), null, 2);
-  const canSend = industria.trim() || lookalike;
+  const canSend = industries.length > 0 || lookalike;
 
   const copyJson = () => { navigator.clipboard.writeText(payloadJson).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 1500); };
 
@@ -98,16 +110,42 @@ export default function ProspectModule() {
           <h2 className="text-sm font-semibold text-gray-800">Búsqueda de empresas</h2>
         </div>
         <div className="px-6 py-5 space-y-5">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-            <div>
-              <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Industria</label>
-              <input value={industria} onChange={e => setIndustria(e.target.value)} placeholder="ej. Insurtech, Factoring..."
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+          <div>
+            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Industrias</label>
+            <div className="flex gap-2 mb-2">
+              <input
+                value={industriaInput}
+                onChange={e => setIndustriaInput(e.target.value)}
+                onKeyDown={handleIndustriaKey}
+                placeholder="ej. Fintech · Enter para añadir"
+                className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              />
+              <button onClick={addIndustria} disabled={!industriaInput.trim()}
+                className="px-3 py-2 rounded-lg text-sm bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-gray-100 disabled:text-gray-400 transition-all font-medium">
+                + Añadir
+              </button>
             </div>
-            <div>
-              <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Keywords <span className="text-gray-300 normal-case font-normal">(opcional)</span></label>
-              <input value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="ej. pagos, nóminas..."
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+            {industries.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {industries.map(ind => (
+                  <span key={ind} className="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-full">
+                    {ind}
+                    <button onClick={() => removeIndustria(ind)} className="ml-0.5 text-indigo-400 hover:text-indigo-700 leading-none">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Revenue</label>
+            <div className="flex flex-wrap gap-1.5">
+              {REVENUES.map(r => (
+                <button key={r} onClick={() => toggleRevenue(r)}
+                  className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-all ${revenues.includes(r) ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-500 border-gray-200 hover:border-indigo-300"}`}>
+                  {r}
+                </button>
+              ))}
             </div>
           </div>
 
