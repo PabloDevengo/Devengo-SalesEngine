@@ -3,7 +3,132 @@ import { Zap, Copy, Download, ExternalLink } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { useData } from "../../utils/dataLoader";
 
-const REVENUES = ["0-1M", "1-10M", "10-50M", "50-100M", "100-500M", "500M+"];
+const REVENUES = ["0-1M", "1-10M", "10-50M", "50-100M", "100-500M", "500-1000M", ">1000M"];
+
+const SURFE_INDUSTRIES = [
+  "3D Printing","3D Technology","Accounting","Ad Network","Adult","Advanced Materials",
+  "Adventure Travel","Advertising","Advertising Platforms","Advice","Aerospace",
+  "Affiliate Marketing","Agriculture","AgTech","Air Transportation","Alternative Medicine",
+  "American Football","Amusement Park and Arcade","Analytics","Android","Angel Investment",
+  "Animal Feed","Animation","Application Performance Management","App Marketing","Apps",
+  "Aquaculture","Architecture","Art","Artificial Intelligence","Asset Management",
+  "Assisted Living","Association","Auctions","Audio","Audiobooks","Augmented Reality",
+  "Auto Insurance","Automotive","Autonomous Vehicles","B2B","B2C","Baby","Bakery",
+  "Banking","Baseball","Basketball","Battery","Beauty","Big Data","Billing","Biofuel",
+  "Bioinformatics","Biomass Energy","Biometrics","Biopharma","Biotechnology","Bitcoin",
+  "Blockchain","Blogging Platforms","Boating","Brand Marketing","Brewing","Broadcasting",
+  "Building Maintenance","Building Material","Business Development",
+  "Business Information Systems","Business Intelligence","Business Travel","CAD",
+  "Call Center","Cannabis","Career Planning","Car Sharing","Casino","Casual Games",
+  "Catering","Charity","Charter Schools","Chemical","Chemical Engineering","Child Care",
+  "Children","Civil Engineering","Clean Energy","CleanTech","Clinical Trials",
+  "Cloud Computing","Cloud Data Services","Cloud Infrastructure","Cloud Management",
+  "Cloud Security","Cloud Storage","CMS","Coffee","Collaboration","Collection Agency",
+  "Comics","Commercial","Commercial Insurance","Commercial Lending","Commercial Real Estate",
+  "Communication Hardware","Communications Infrastructure","Communities","Compliance",
+  "Computer","Computer Vision","Concerts","Confectionery","Console Games","Construction",
+  "Consulting","Consumer","Consumer Electronics","Consumer Goods","Consumer Lending",
+  "Consumer Research","Consumer Reviews","Consumer Software","Contact Management",
+  "Content","Content Creators","Content Delivery Network","Content Marketing",
+  "Continuing Education","Cooking","Corporate Training","Cosmetics","Cosmetic Surgery",
+  "Coupons","Courier Service","Coworking","Craft Beer","Creative Agency","Credit",
+  "Credit Bureau","Credit Cards","CRM","Crowdfunding","Cryptocurrency","Customer Service",
+  "Cyber Security","Cycling","Database","Data Center","Data Center Automation",
+  "Data Integration","Data Mining","Data Storage","Data Visualization","Dating",
+  "Debit Cards","Debt Collections","Delivery","Delivery Service","Dental","Developer APIs",
+  "Developer Platform","Developer Tools","Diabetes","Dietary Supplements",
+  "Digital Entertainment","Digital Marketing","Digital Media","Digital Signage",
+  "Direct Marketing","Direct Sales","Distillery","Diving","Document Management",
+  "Document Preparation","Domain Registrar","Drone Management","Drones","EBooks",
+  "E-Commerce","E-Commerce Platforms","EdTech","Education","Edutainment","Elder Care",
+  "Elderly","E-Learning","Electrical Distribution","Electric Vehicle",
+  "Electronic Design Automation (EDA)","Electronic Health Record (EHR)","Electronics",
+  "Email","Email Marketing","Embedded Systems","Emergency Medicine","Employee Benefits",
+  "Employment","Energy","Energy Efficiency","Energy Management","Energy Storage",
+  "Enterprise","Enterprise Applications","Enterprise Resource Planning (ERP)",
+  "Enterprise Software","Environmental Consulting","Environmental Engineering","eSports",
+  "Ethereum","Event Management","Event Promotion","Events","Extermination Service",
+  "Eyewear","Facilities Support Services","Facility Management","Family","Fantasy Sports",
+  "Farmers Market","Farming","Fashion","Fast-Moving Consumer Goods","Fertility",
+  "Field Support","File Sharing","Film","Film Distribution","Film Production","Finance",
+  "Financial Exchanges","Financial Services","FinTech","First Aid","Fitness",
+  "Fleet Management","Flowers","Food and Beverage","Food Delivery","Food Processing",
+  "Food Trucks","Forestry","Foundries","Fraud Detection","Freelance","Freight Service",
+  "Fruit","Fuel","Funding Platform","Funerals","Furniture","Gambling","Gamification",
+  "Gaming","Genetics","Geospatial","Gift","Gift Card","Golf","Government","GovTech","GPS",
+  "Graphic Design","Green Building","GreenTech","Grocery","Guides","Handmade","Hardware",
+  "Health Care","Health Diagnostics","Health Insurance","Hedge Funds","Higher Education",
+  "Hockey","Home and Garden","Home Decor","Home Health Care","Home Improvement",
+  "Homeland Security","Homeless Shelter","Home Renovation","Home Services","Horticulture",
+  "Hospital","Hospitality","Hotel","Housekeeping Service","Human Computer Interaction",
+  "Humanitarian","Human Resources","Hunting","IaaS","Identity Management",
+  "Image Recognition","Impact Investing","Incubators","Independent Music","Industrial",
+  "Industrial Automation","Industrial Design","Industrial Engineering",
+  "Industrial Manufacturing","Information and Communications Technology (ICT)",
+  "Information Services","Information Technology","Infrastructure","Innovation Management",
+  "Insurance","InsurTech","Intellectual Property","Intelligent Systems","Interior Design",
+  "Internet","Internet of Things","Internet Radio","iOS","ISP","IT Infrastructure",
+  "IT Management","Janitorial Service","Jewelry","Journalism","Knowledge Management",
+  "Landscaping","Language Learning","Laser","Last Mile Transportation",
+  "Laundry and Dry-cleaning","Law Enforcement","Lead Generation","Lead Management",
+  "Leasing","Legal","Legal Tech","Leisure","Lending","Life Insurance","Life Science",
+  "Lifestyle","Lighting","Limousine Service","Lingerie","Livestock","Local",
+  "Local Business","Location Based Services","Logistics","Loyalty Programs",
+  "Machine Learning","Machinery Manufacturing","Management Consulting",
+  "Management Information Systems","Manufacturing","Mapping Services","Marine Technology",
+  "Marine Transportation","Marketing","Marketing Automation","Marketplace","Market Research",
+  "Mechanical Design","Mechanical Engineering","Media and Entertainment","Medical",
+  "Medical Device","Meeting Software","Men's","Messaging","mHealth","Military","Mineral",
+  "Mining","Mining Technology","Mobile","Mobile Advertising","Mobile Apps","Mobile Devices",
+  "Mobile Payments","Motion Capture","Museums and Historical Sites","Music",
+  "Musical Instruments","Music Education","Music Label","Music Streaming","Music Venues",
+  "Nanotechnology","National Security","Natural Language Processing","Natural Resources",
+  "Navigation","Network Hardware","Network Security","Neuroscience","News","Non Profit",
+  "Nuclear","Nursing and Residential Care","Nutrition","Office Administration","Oil and Gas",
+  "Online Games","Online Portals","Open Source","Optical Communication","Organic",
+  "Organic Food","Outdoor Advertising","Outdoors","Outpatient Care","Outsourcing","PaaS",
+  "Packaging Services","Paper Manufacturing","Parenting","Parking","Parks","Payments",
+  "PC Games","Penetration Testing","Performing Arts","Personal Branding",
+  "Personal Development","Personal Finance","Personal Health","Personalization","Pet",
+  "Pharmaceutical","Photo Editing","Photography","Photo Sharing","Physical Security",
+  "Plastics and Rubber Manufacturing","Podcast","Point of Sale","Politics",
+  "Pollution Control","Ports and Harbors","Power Grid","Precious Metals",
+  "Predictive Analytics","Price Comparison","Primary Education","Printing","Privacy",
+  "Private Cloud","Procurement","Product Design","Productivity Tools","Product Management",
+  "Product Research","Professional Networking","Professional Services","Project Management",
+  "Property Development","Property Insurance","Property Management","Psychology",
+  "Public Relations","Public Safety","Public Transportation","Publishing",
+  "Quality Assurance","Quantum Computing","Racing","Railroad","Real Estate",
+  "Real Estate Investment","Real Time","Recipes","Recreation","Recreational Vehicles",
+  "Recruiting","Recycling","Rehabilitation","Religion","Renewable Energy","Rental",
+  "Rental Property","Reputation","Reservations","Residential","Resorts","Restaurants",
+  "Retail","Retail Technology","Retirement","Ride Sharing","Risk Management","Robotics",
+  "SaaS","Sailing","Sales","Sales Automation","Same Day Delivery","Satellite Communication",
+  "Scheduling","Seafood","Search Engine","Secondary Education","Security","Self-Storage",
+  "SEM","Semantic Search","Semiconductor","Sensor","SEO","Serious Games","Service Industry",
+  "Sharing Economy","Shipping","Shoes","Shopping","Shopping Mall","Simulation","Skiing",
+  "Skill Assessment","Small and Medium Businesses","Smart Building","Smart Cities",
+  "Smart Home","SMS","Snack Food","Soccer","Social","Social Assistance",
+  "Social Entrepreneurship","Social Impact","Social Media","Social Media Advertising",
+  "Social Media Management","Social Media Marketing","Social Network","Social News",
+  "Social Recruiting","Software","Software Engineering","Solar","Space Travel",
+  "Speech Recognition","Sporting Goods","Sports","Staffing Agency","STEM Education",
+  "Stock Exchanges","Subscription Service","Supply Chain Management","Surfing",
+  "Sustainability","Swimming","Task Management","Taxi Service","Tea","Technical Support",
+  "Telecommunications","Tennis","Test and Measurement","Text Analytics","Textiles",
+  "Theatre","Therapeutics","Ticketing","Timber","Tobacco","Tourism","Tour Operator",
+  "Toys","Trade Shows","Trading Platform","Training","Transaction Processing",
+  "Translation Service","Transportation","Travel","Travel Accommodations","Travel Agency",
+  "Tutoring","TV","TV Production","Underserved Children","Unified Communications",
+  "Universities","Usability Testing","UX Design","Vacation Rental","Venture Capital",
+  "Veterinary","Video","Video Advertising","Video Chat","Video Conferencing","Video Editing",
+  "Video Games","Video on Demand","Video Streaming","Virtual Assistant","Virtual Currency",
+  "Virtualization","Virtual Reality","Virtual Workforce","Vocational Education","VoIP",
+  "Warehousing","Waste Management","Water","Water Purification","Water Transportation",
+  "Wealth Management","Wearables","Web Apps","Web Design","Web Development","Web Hosting",
+  "Wedding","Wellness","Wholesale","Wind Energy","Windows","Wine And Spirits","Winery",
+  "Wired Telecommunications","Wireless","Women's","Wood Processing","Young Adults",
+];
 
 export default function ProspectModule() {
   const { clientes } = useApp();
@@ -12,6 +137,7 @@ export default function ProspectModule() {
 
   const [industries,     setIndustries]     = useState([]);
   const [industriaInput, setIndustriaInput] = useState("");
+  const [showIndustrySuggestions, setShowIndustrySuggestions] = useState(false);
   const [geos,           setGeos]           = useState(["España"]);
   const [tamanosSel,     setTamanosSel]     = useState([]);
   const [revenues,       setRevenues]       = useState([]);
@@ -29,13 +155,23 @@ export default function ProspectModule() {
   const toggleRevenue = (r) => setRevenues(rs => rs.includes(r) ? rs.filter(x => x !== r) : [...rs, r]);
   const clientesPublicos = clientes.filter(c => c.visibilidad === "publico");
 
-  const addIndustria = () => {
-    const val = industriaInput.trim();
-    if (val && !industries.includes(val)) setIndustries(prev => [...prev, val]);
+  const addIndustria = (val) => {
+    const v = (val || industriaInput).trim();
+    if (v && !industries.includes(v)) setIndustries(prev => [...prev, v]);
     setIndustriaInput("");
+    setShowIndustrySuggestions(false);
   };
   const removeIndustria = (ind) => setIndustries(prev => prev.filter(x => x !== ind));
-  const handleIndustriaKey = (e) => { if (e.key === "Enter") { e.preventDefault(); addIndustria(); } };
+  const handleIndustriaKey = (e) => {
+    if (e.key === "Escape") { setShowIndustrySuggestions(false); return; }
+    const suggestions = SURFE_INDUSTRIES.filter(i =>
+      i.toLowerCase().includes(industriaInput.toLowerCase()) && !industries.includes(i)
+    );
+    if (e.key === "Enter") { e.preventDefault(); if (suggestions.length > 0) addIndustria(suggestions[0]); }
+  };
+  const industrySuggestions = industriaInput.length >= 1
+    ? SURFE_INDUSTRIES.filter(i => i.toLowerCase().includes(industriaInput.toLowerCase()) && !industries.includes(i)).slice(0, 8)
+    : [];
 
   const buildPayload = () => ({
     tipo: "empresa",
@@ -112,21 +248,29 @@ export default function ProspectModule() {
         <div className="px-6 py-5 space-y-5">
           <div>
             <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Industrias</label>
-            <div className="flex gap-2 mb-2">
+            <div className="relative">
               <input
                 value={industriaInput}
-                onChange={e => setIndustriaInput(e.target.value)}
+                onChange={e => { setIndustriaInput(e.target.value); setShowIndustrySuggestions(true); }}
+                onFocus={() => setShowIndustrySuggestions(true)}
+                onBlur={() => setTimeout(() => setShowIndustrySuggestions(false), 150)}
                 onKeyDown={handleIndustriaKey}
-                placeholder="ej. Fintech · Enter para añadir"
-                className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                placeholder="Buscar industria…"
+                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               />
-              <button onClick={addIndustria} disabled={!industriaInput.trim()}
-                className="px-3 py-2 rounded-lg text-sm bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-gray-100 disabled:text-gray-400 transition-all font-medium">
-                + Añadir
-              </button>
+              {showIndustrySuggestions && industrySuggestions.length > 0 && (
+                <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {industrySuggestions.map(ind => (
+                    <button key={ind} onMouseDown={() => addIndustria(ind)}
+                      className="w-full text-left text-sm px-3 py-2 hover:bg-indigo-50 hover:text-indigo-700 transition-colors">
+                      {ind}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             {industries.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5 mt-2">
                 {industries.map(ind => (
                   <span key={ind} className="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-full">
                     {ind}
