@@ -1,7 +1,7 @@
-import { Tag } from "lucide-react";
+import { Tag, LogOut } from "lucide-react";
 import { useApp } from "../context/AppContext";
 
-export default function Header({ title, sub, activeModule }) {
+export default function Header({ title, sub, activeModule, onLogout }) {
   const { productos } = useApp();
   const tags = productos.map(p => p.nombre);
 
@@ -12,18 +12,27 @@ export default function Header({ title, sub, activeModule }) {
         <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
       </div>
 
-      {tags.length > 0 && activeModule !== "config" && (
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          <span className="text-xs text-gray-400 mr-1">Tags activos:</span>
-          {tags.map(t => (
-            <span
-              key={t}
-              className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-full border border-indigo-100">
-              <Tag size={9} />{t}
-            </span>
-          ))}
-        </div>
-      )}
+      <div className="flex items-center gap-4">
+        {tags.length > 0 && activeModule !== "config" && (
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <span className="text-xs text-gray-400 mr-1">Tags activos:</span>
+            {tags.map(t => (
+              <span
+                key={t}
+                className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-full border border-indigo-100">
+                <Tag size={9} />{t}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <button
+          onClick={onLogout}
+          title="Cerrar sesión"
+          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+          <LogOut size={15} />
+        </button>
+      </div>
     </header>
   );
 }

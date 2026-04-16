@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Mail, Copy, Download, Upload, Zap, X, CheckCircle, AlertTriangle, XCircle, HelpCircle } from "lucide-react";
+import { Mail, Copy, Download, Zap } from "lucide-react";
 import { normalize, buildCombinations } from "../../utils/emailUtils";
 
 // ═══════════════════════════════════════════════════════════
@@ -20,22 +20,6 @@ function StatusBadge({ status }) {
       {cfg.label}
     </span>
   );
-}
-
-function parseCsv(text) {
-  const lines = text.trim().split(/\r?\n/).filter(Boolean);
-  if (!lines.length) return { headers: [], rows: [] };
-  const delim  = [",", ";", "\t"].find(d => lines[0].includes(d)) || ",";
-  const clean  = (s) => s.trim().replace(/^["']|["']$/g, "");
-  const headers = lines[0].split(delim).map(clean);
-  const rows    = lines.slice(1).map(line =>
-    Object.fromEntries(headers.map((h, i) => [h, clean(line.split(delim)[i] ?? "")]))
-  );
-  return { headers, rows };
-}
-
-function detectEmailCol(headers) {
-  return headers.find(h => /^(e?mail|correo)$/i.test(h.trim())) ?? null;
 }
 
 const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s?.trim() ?? "");
@@ -80,125 +64,78 @@ export default function EmailModule() {
     a.href = url; a.download = `emails_${normalize(nombre)}_${normalize(apellido1)}.json`; a.click(); URL.revokeObjectURL(url);
   };
 
-  // Send generated emails to verificator
+  // Send generated emails to verificator (jumps to verificator tab)
   const sendToVerificator = () => {
-    setVerEmails(combos.map(c => c.email));
     setActiveTab("verificator");
   };
 
   // ── Verificator state ─────────────────────────────────────
-  const fileRef = useRef();
-  const [inputTab,    setInputTab]    = useState("paste");
-  const [pasteText,   setPasteText]   = useState("");
-  const [csvHeaders,  setCsvHeaders]  = useState([]);
-  const [csvRows,     setCsvRows]     = useState([]);
-  const [emailCol,    setEmailCol]    = useState("");
-  const [csvFileName, setCsvFileName] = useState(null);
-  const [csvFile,     setCsvFile]     = useState(null); // raw File object for N8N
-  const [verEmails,   setVerEmails]   = useState([]);
-  const [apiMode,     setApiMode]     = useState("bouncer");
-  const [bouncerKey,  setBouncerKey]  = useState(import.meta.env.VITE_BOUNCER_API_KEY || "");
-  const [webhookUrl,  setWebhookUrl]  = useState(import.meta.env.VITE_N8N_VERIFICATION_WEBHOOK || "");
-  const [verifying,   setVerifying]   = useState(false);
-  const [progress,    setProgress]    = useState(0);
-  const [results,     setResults]     = useState(null);
-  const [verError,    setVerError]    = useState(null);
-  const [verCopied,   setVerCopied]   = useState(null);
+  const verInputRef = useRef();
+  const [verWebhook,   setVerWebhook]   = useState(import.meta.env.VITE_N8N_VERIFICATION_WEBHOOK || "");
+  const [manualEmails, setManualEmails] = useState("");
+  const [csvEmails,    setCsvEmails]    = useState([]);
+  const [csvFileName,  setCsvFileName]  = useState(null);
+  const [verLoading,   setVerLoading]   = useState(false);
+  const [results,      setResults]      = useState(null);
+  const [verError,     setVerError]     = useState(null);
+  const [verSent,      setVerSent]      = useState(false);
+  const [verCopied,    setVerCopied]    = useState(null);
 
-  const loadFromPaste = () => {
-    const list = pasteText.split(/[\n,;]+/).map(s => s.trim().toLowerCase()).filter(isEmail);
-    setVerEmails([...new Set(list)]); setResults(null); setVerError(null);
-  };
-
-  const onCsvFile = (file) => {
+  const readCsv = (file) => {
     if (!file) return;
-    setCsvFileName(file.name);
-    setCsvFile(file); // keep raw File for N8N upload
     const reader = new FileReader();
     reader.onload = (e) => {
-      const { headers, rows } = parseCsv(e.target.result);
-      setCsvHeaders(headers); setCsvRows(rows);
-      setEmailCol(detectEmailCol(headers) || headers[0] || "");
+      const emails = e.target.result
+        .split(/\r?\n/)
+        .flatMap(l => l.split(",").map(s => s.trim()))
+        .filter(s => isEmail(s));
+      setCsvEmails([...new Set(emails)]);
+      setCsvFileName(file.name);
     };
     reader.readAsText(file, "UTF-8");
   };
 
-  const loadFromCsv = () => {
-    if (!emailCol || !csvRows.length) return;
-    const list = csvRows.map(r => r[emailCol]?.trim().toLowerCase()).filter(isEmail);
-    setVerEmails([...new Set(list)]); setResults(null); setVerError(null);
+  const allVerEmails = () => {
+    const generated = combos.map(c => c.email);
+    const manual    = manualEmails.split(/[\n,;]+/).map(s => s.trim()).filter(isEmail);
+    return [...new Set([...generated, ...csvEmails, ...manual])];
   };
 
-  const verifyBouncer = async () => {
-    const out = [];
-    for (let i = 0; i < verEmails.length; i++) {
-      const email = verEmails[i];
-      try {
-        const res  = await fetch(`https://api.usebouncer.com/v1.1/email/verify?email=${encodeURIComponent(email)}`, { headers: { "x-api-key": bouncerKey } });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const d = await res.json();
-        out.push({ email, status: d.status ?? "unknown", reason: d.reason ?? "—", score: d.score ?? null, toxic: d.toxic ?? false, provider: d.provider ?? "—" });
-      } catch (e) {
-        out.push({ email, status: "unknown", reason: e.message, score: null, toxic: false, provider: "—" });
-      }
-      setProgress(Math.round(((i + 1) / verEmails.length) * 100));
-    }
-    return out;
-  };
-
-  const verifyN8N = async () => {
-    setProgress(20);
-
-    // Build the CSV file to send:
-    // - If the user uploaded a CSV → send the original file (full CSV with all columns)
-    // - Otherwise (paste or generated emails) → build a minimal CSV with just "email" column
-    let fileToSend;
-    if (inputTab === "csv" && csvFile) {
-      fileToSend = csvFile; // original upload
-    } else {
-      const csvContent = ["email", ...verEmails].join("\n");
-      fileToSend = new File([csvContent], "emails.csv", { type: "text/csv" });
-    }
-
-    const formData = new FormData();
-    formData.append("file", fileToSend);
-    formData.append("email_column", emailCol || "email"); // column name N8N should look at
-    formData.append("total_emails", verEmails.length);
-
-    setProgress(40);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120000);
-    const res = await fetch(webhookUrl.trim(), {
-      method: "POST",
-      signal: controller.signal,
-      body: formData, // browser sets Content-Type: multipart/form-data automatically
-    });
-    clearTimeout(timeout);
-    setProgress(85);
-    if (!res.ok) throw new Error(`Error HTTP ${res.status} desde N8N.`);
-    const data = await res.json();
-    const list = Array.isArray(data) ? data : (data.results ?? data.data ?? []);
-    setProgress(100);
-    return list.map(item => ({
-      email: item.email ?? "", status: item.status ?? "unknown", reason: item.reason ?? "—",
-      score: item.score ?? null, toxic: item.toxic ?? false, provider: item.provider ?? "—",
-    }));
-  };
-
-  const verificar = async () => {
-    setVerifying(true); setVerError(null); setResults(null); setProgress(0);
+  const enviarVerificacion = async () => {
+    const emails = allVerEmails();
+    if (!emails.length)      { setVerError("No hay emails para verificar."); return; }
+    if (!verWebhook.trim())  { setVerError("Pega la URL del webhook de N8N."); return; }
+    setVerLoading(true); setVerError(null); setVerSent(false); setResults(null);
     try {
-      setResults(apiMode === "bouncer" ? await verifyBouncer() : await verifyN8N());
-    } catch (e) {
-      setVerError(e.name === "AbortError" ? "Timeout: la verificación tardó más de 2 minutos." : `Error: ${e.message}`);
-    } finally { setVerifying(false); setProgress(0); }
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 120000);
+      const res = await fetch(verWebhook.trim(), {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo: "verificacion_emails",
+          emails,
+          total: emails.length,
+          contacto: { nombre: nombre.trim(), apellido1: apellido1.trim(), dominio: dominio.trim() },
+        }),
+      });
+      clearTimeout(timeout);
+      if (!res.ok) { setVerError(`Error HTTP ${res.status} desde N8N.`); return; }
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data.results ?? data.data ?? []);
+      if (list.length > 0) {
+        setResults(list.map(item => ({
+          email: item.email ?? "", status: item.status ?? "unknown",
+          reason: item.reason ?? "—", score: item.score ?? null,
+          toxic: item.toxic ?? false, provider: item.provider ?? "—",
+        })));
+      }
+      setVerSent(true);
+    } catch(e) {
+      setVerError(e.name === "AbortError" ? "Timeout: N8N tardó más de 2 minutos." : `Error: ${e.message}`);
+    } finally { setVerLoading(false); }
   };
-
-  const canVerify = verEmails.length > 0 && (apiMode === "n8n" ? webhookUrl.trim() : bouncerKey.trim());
-
-  const counts = results
-    ? Object.fromEntries(["deliverable", "risky", "undeliverable", "unknown"].map(s => [s, results.filter(r => r.status === s).length]))
-    : null;
 
   const dlVerCsv = () => {
     const blob = new Blob([["email,status,reason,score,toxic,provider", ...results.map(r => `${r.email},${r.status},${r.reason},${r.score ?? ""},${r.toxic},${r.provider}`)].join("\n")], { type: "text/csv;charset=utf-8;" });
@@ -212,6 +149,10 @@ export default function EmailModule() {
     navigator.clipboard.writeText(results.filter(r => r.status === "deliverable").map(r => r.email).join("\n")).catch(() => {});
     setVerCopied("del"); setTimeout(() => setVerCopied(null), 1500);
   };
+
+  const counts = results
+    ? Object.fromEntries(["deliverable", "risky", "undeliverable", "unknown"].map(s => [s, results.filter(r => r.status === s).length]))
+    : null;
 
   // ═══════════════════════════════════════════════════════════
   // RENDER
@@ -317,204 +258,141 @@ export default function EmailModule() {
       ══════════════════════════════════════════════════════ */}
       {activeTab === "verificator" && (
         <>
-          {/* Input section */}
           <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-              <span className="text-base">📋</span>
-              <h2 className="text-sm font-semibold text-gray-800">Emails a verificar</h2>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Zap size={15} className="text-indigo-500" />
+                <h2 className="text-sm font-semibold text-gray-800">Verificar emails</h2>
+                {allVerEmails().length > 0 && (
+                  <span className="text-xs bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-medium">
+                    {allVerEmails().length} emails
+                  </span>
+                )}
+              </div>
             </div>
+            <div className="px-6 py-5 space-y-4">
 
-            <div className="flex border-b border-gray-100">
-              {[{ id: "paste", label: "✏️ Pegar emails" }, { id: "csv", label: "📂 Subir CSV" }].map(tab => (
-                <button key={tab.id} onClick={() => setInputTab(tab.id)}
-                  className={`px-5 py-3 text-xs font-medium transition-all border-b-2 -mb-px ${
-                    inputTab === tab.id ? "border-indigo-600 text-indigo-600" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="px-6 py-5 space-y-3">
-              {inputTab === "paste" && (
-                <>
-                  <p className="text-xs text-gray-400">Un email por línea, o separados por coma. Los duplicados se eliminan automáticamente.</p>
-                  <textarea value={pasteText} onChange={e => setPasteText(e.target.value)}
-                    rows={5} placeholder={"nombre@empresa.com\notro@empresa.com\n..."}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono resize-none" />
-                  <button onClick={loadFromPaste} disabled={!pasteText.trim()}
-                    className={`text-xs px-4 py-1.5 rounded-lg font-medium transition-all ${pasteText.trim() ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}>
-                    Cargar emails
-                  </button>
-                </>
-              )}
-
-              {inputTab === "csv" && (
-                <>
-                  <div onClick={() => fileRef.current.click()}
-                    className="border-2 border-dashed rounded-xl px-6 py-8 text-center cursor-pointer transition-all border-gray-200 hover:border-indigo-300 hover:bg-gray-50">
-                    <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center mx-auto mb-3">
-                      <Upload size={18} className="text-indigo-400" />
-                    </div>
-                    <p className="text-sm font-medium text-gray-700 mb-1">{csvFileName ?? "Arrastra o haz clic para subir un CSV"}</p>
-                    <p className="text-xs text-gray-400">Formatos: .csv · Delimitadores: coma, punto y coma, tabulador</p>
-                    <input ref={fileRef} type="file" accept=".csv,.txt" onChange={e => onCsvFile(e.target.files[0])} className="hidden" />
-                  </div>
-                  {csvHeaders.length > 0 && (
-                    <div className="flex items-center gap-3">
-                      <label className="text-xs font-medium text-gray-500 whitespace-nowrap">Columna de email:</label>
-                      <select value={emailCol} onChange={e => setEmailCol(e.target.value)}
-                        className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white flex-1">
-                        {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                      </select>
-                      <button onClick={loadFromCsv}
-                        className="text-xs px-4 py-1.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-all whitespace-nowrap">
-                        Cargar emails
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {verEmails.length > 0 && (
-                <div className="flex items-center justify-between bg-indigo-50 rounded-lg px-4 py-2.5">
-                  <span className="text-xs font-medium text-indigo-700">✅ {verEmails.length} emails únicos cargados</span>
-                  <button onClick={() => { setVerEmails([]); setResults(null); }}
-                    className="text-xs text-indigo-400 hover:text-red-500 flex items-center gap-1">
-                    <X size={11} /> Limpiar
-                  </button>
+              {/* Fuente 1: combos generados */}
+              {combos.length > 0 && (
+                <div className="flex items-center gap-3 px-4 py-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                  <span className="text-indigo-500 text-xs">✓</span>
+                  <p className="text-xs text-indigo-700">{combos.length} emails generados automáticamente incluidos</p>
                 </div>
               )}
+
+              {/* Fuente 2: CSV */}
+              <div>
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">
+                  Subir CSV <span className="text-gray-300 normal-case font-normal">(opcional)</span>
+                </label>
+                <div onClick={() => verInputRef.current.click()}
+                  className="border border-dashed border-gray-200 rounded-lg px-4 py-3 text-center cursor-pointer hover:border-indigo-300 hover:bg-gray-50 transition-all">
+                  {csvFileName
+                    ? <p className="text-xs text-indigo-600 font-medium">{csvFileName} · {csvEmails.length} emails</p>
+                    : <p className="text-xs text-gray-400">Haz clic para subir un .csv con emails</p>
+                  }
+                  <input ref={verInputRef} type="file" accept=".csv,.txt" onChange={e => readCsv(e.target.files[0])} className="hidden" />
+                </div>
+                {csvFileName && (
+                  <button onClick={() => { setCsvEmails([]); setCsvFileName(null); }}
+                    className="text-xs text-gray-400 hover:text-red-500 mt-1.5 transition-all">
+                    Quitar archivo
+                  </button>
+                )}
+              </div>
+
+              {/* Fuente 3: manual */}
+              <div>
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">
+                  Añadir manualmente <span className="text-gray-300 normal-case font-normal">(separados por coma)</span>
+                </label>
+                <textarea value={manualEmails} onChange={e => setManualEmails(e.target.value)}
+                  placeholder="email1@empresa.com, email2@empresa.com, ..."
+                  rows={2}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 resize-none" />
+              </div>
+
+              {/* Webhook + botón */}
+              <div>
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Webhook N8N</label>
+                <input value={verWebhook} onChange={e => setVerWebhook(e.target.value)}
+                  placeholder="https://tu-n8n.com/webhook/..."
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono mb-3" />
+                <button onClick={enviarVerificacion}
+                  disabled={verLoading || !verWebhook.trim() || allVerEmails().length === 0}
+                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    verLoading || !verWebhook.trim() || allVerEmails().length === 0
+                      ? "bg-indigo-100 text-indigo-400 cursor-not-allowed"
+                      : "bg-indigo-600 text-white hover:bg-indigo-700"}`}>
+                  {verLoading
+                    ? <><span className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />Verificando...</>
+                    : verSent && !results
+                    ? <>✓ Enviado — {allVerEmails().length} emails en verificación</>
+                    : <><Zap size={13} />Verificar {allVerEmails().length > 0 ? `${allVerEmails().length} emails` : "emails"}</>}
+                </button>
+              </div>
+
+              {verError && <p className="text-xs text-red-500 font-mono">{verError}</p>}
             </div>
           </section>
 
-          {/* API config + verify button */}
-          {verEmails.length > 0 && (
-            <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-                <span className="text-base">🔌</span>
-                <h2 className="text-sm font-semibold text-gray-800">Configuración de verificación</h2>
-              </div>
-              <div className="px-6 py-5 space-y-4">
-                <div className="flex gap-2">
-                  {[
-                    { id: "bouncer", label: "⚡ Bouncer directo", sub: "Llama a la API de Bouncer desde el navegador" },
-                    { id: "n8n",     label: "🔗 Via N8N",         sub: "Envía a tu workflow de N8N" },
-                  ].map(m => (
-                    <button key={m.id} onClick={() => setApiMode(m.id)}
-                      className={`flex-1 text-left px-4 py-3 rounded-lg border text-xs transition-all ${apiMode === m.id ? "bg-indigo-50 border-indigo-200 text-indigo-700" : "bg-white border-gray-200 text-gray-500 hover:border-indigo-200"}`}>
-                      <span className="font-semibold block mb-0.5">{m.label}</span>
-                      <span className={apiMode === m.id ? "text-indigo-400" : "text-gray-400"}>{m.sub}</span>
-                    </button>
-                  ))}
-                </div>
-
-                {apiMode === "bouncer" ? (
-                  <div>
-                    <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">
-                      Bouncer API Key
-                      <a href="https://app.usebouncer.com/api" target="_blank" rel="noreferrer" className="ml-2 normal-case font-normal text-indigo-400 hover:text-indigo-600">Obtener key →</a>
-                    </label>
-                    <input value={bouncerKey} onChange={e => setBouncerKey(e.target.value)} type="password" placeholder="tu-api-key-de-bouncer"
-                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono" />
-                    <p className="text-xs text-gray-400 mt-1.5">⚠️ Bouncer requiere CORS habilitado en tu cuenta para llamadas desde el navegador. Si no funciona, usa el modo N8N.</p>
-                  </div>
-                ) : (
-                  <div>
-                    <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Webhook N8N</label>
-                    <input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} placeholder="https://tu-n8n.com/webhook/verification"
-                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono" />
-                    <p className="text-xs text-gray-400 mt-1.5">
-                      N8N recibirá un <strong>multipart/form-data</strong> con tres campos:
-                      <br />· <code className="bg-gray-100 px-1 rounded">file</code> — CSV con los emails
-                      {inputTab === "csv" && csvFile
-                        ? <span className="text-indigo-500"> (tu archivo original: <em>{csvFile.name}</em>)</span>
-                        : <span className="text-indigo-500"> (generado automáticamente con columna "email")</span>}
-                      <br />· <code className="bg-gray-100 px-1 rounded">email_column</code> — nombre de la columna a usar
-                      <br />· <code className="bg-gray-100 px-1 rounded">total_emails</code> — cantidad de emails
-                      <br />Debe devolver un array con <code className="bg-gray-100 px-1 rounded">email</code>, <code className="bg-gray-100 px-1 rounded">status</code>, <code className="bg-gray-100 px-1 rounded">reason</code> y <code className="bg-gray-100 px-1 rounded">score</code> por cada fila.
-                    </p>
-                  </div>
-                )}
-
-                {verifying && (
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs text-gray-400">
-                      <span>Verificando...</span><span>{progress}%</span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-1.5">
-                      <div className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
-                    </div>
-                  </div>
-                )}
-
-                <button onClick={verificar} disabled={!canVerify || verifying}
-                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${!canVerify || verifying ? "bg-indigo-100 text-indigo-400 cursor-not-allowed" : "bg-indigo-600 text-white hover:bg-indigo-700"}`}>
-                  {verifying
-                    ? <><span className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />Verificando {verEmails.length} emails...</>
-                    : <><Zap size={13} />Verificar {verEmails.length} emails</>}
-                </button>
-              </div>
-            </section>
-          )}
-
-          {verError && <div className="bg-red-50 border border-red-100 rounded-xl px-5 py-4 text-xs text-red-600 font-mono">{verError}</div>}
-
           {/* Results */}
-          {results && (
-            <>
-              <div className="grid grid-cols-4 gap-3">
-                {[
-                  { key: "deliverable",   label: "Entregables",    color: "border-emerald-200 bg-emerald-50", text: "text-emerald-700" },
-                  { key: "risky",         label: "Arriesgados",    color: "border-amber-200 bg-amber-50",     text: "text-amber-700"   },
-                  { key: "undeliverable", label: "No entregables", color: "border-red-200 bg-red-50",         text: "text-red-700"     },
-                  { key: "unknown",       label: "Desconocidos",   color: "border-gray-200 bg-gray-50",       text: "text-gray-600"    },
-                ].map(({ key, label, color, text }) => (
-                  <div key={key} className={`rounded-xl border px-4 py-3 ${color}`}>
-                    <p className={`text-2xl font-bold ${text}`}>{counts[key]}</p>
-                    <p className={`text-xs mt-0.5 font-medium ${text} opacity-80`}>{label}</p>
-                  </div>
-                ))}
-              </div>
-
-              <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-gray-800">Detalle de resultados</h2>
-                  <div className="flex items-center gap-2">
-                    {counts.deliverable > 0 && (
-                      <button onClick={copyDeliverable}
-                        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-emerald-600 px-3 py-1.5 rounded-lg hover:bg-emerald-50 transition-all">
-                        <Copy size={11} />{verCopied === "del" ? "¡Copiado!" : "Copiar entregables"}
-                      </button>
-                    )}
-                    <button onClick={dlVerCsv} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-all">
-                      <Download size={11} /> CSV
-                    </button>
-                    <button onClick={dlVerJson} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-all">
-                      <Download size={11} /> JSON
-                    </button>
-                  </div>
-                </div>
-                <div className="divide-y divide-gray-50">
-                  <div className="px-6 py-2 grid grid-cols-12 gap-4 bg-gray-50">
-                    <span className="col-span-5 text-xs font-medium text-gray-400 uppercase tracking-wider">Email</span>
-                    <span className="col-span-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Estado</span>
-                    <span className="col-span-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Motivo</span>
-                    <span className="col-span-1 text-xs font-medium text-gray-400 uppercase tracking-wider text-right">Score</span>
-                  </div>
-                  {results.map((r) => (
-                    <div key={r.email} className="px-6 py-3 grid grid-cols-12 gap-4 items-center hover:bg-gray-50 transition-colors">
-                      <span className="col-span-5 text-sm font-mono text-gray-700 truncate">{r.email}</span>
-                      <span className="col-span-3"><StatusBadge status={r.status} /></span>
-                      <span className="col-span-3 text-xs text-gray-400 truncate">{r.reason}</span>
-                      <span className={`col-span-1 text-xs font-semibold text-right ${r.score >= 80 ? "text-emerald-600" : r.score >= 50 ? "text-amber-600" : r.score != null ? "text-red-500" : "text-gray-300"}`}>
-                        {r.score != null ? r.score : "—"}
-                      </span>
+          {results && (() => {
+            return (
+              <>
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { key: "deliverable",   label: "Entregables",    color: "border-emerald-200 bg-emerald-50", text: "text-emerald-700" },
+                    { key: "risky",         label: "Arriesgados",    color: "border-amber-200 bg-amber-50",     text: "text-amber-700"   },
+                    { key: "undeliverable", label: "No entregables", color: "border-red-200 bg-red-50",         text: "text-red-700"     },
+                    { key: "unknown",       label: "Desconocidos",   color: "border-gray-200 bg-gray-50",       text: "text-gray-600"    },
+                  ].map(({ key, label, color, text }) => (
+                    <div key={key} className={`rounded-xl border px-4 py-3 ${color}`}>
+                      <p className={`text-2xl font-bold ${text}`}>{counts[key]}</p>
+                      <p className={`text-xs mt-0.5 font-medium ${text} opacity-80`}>{label}</p>
                     </div>
                   ))}
                 </div>
-              </section>
-            </>
-          )}
+                <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-gray-800">Detalle de resultados</h2>
+                    <div className="flex items-center gap-2">
+                      {counts.deliverable > 0 && (
+                        <button onClick={copyDeliverable}
+                          className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-emerald-600 px-3 py-1.5 rounded-lg hover:bg-emerald-50 transition-all">
+                          <Copy size={11} />{verCopied === "del" ? "¡Copiado!" : "Copiar entregables"}
+                        </button>
+                      )}
+                      <button onClick={dlVerCsv} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-all">
+                        <Download size={11} /> CSV
+                      </button>
+                      <button onClick={dlVerJson} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-all">
+                        <Download size={11} /> JSON
+                      </button>
+                    </div>
+                  </div>
+                  <div className="divide-y divide-gray-50">
+                    <div className="px-6 py-2 grid grid-cols-12 gap-4 bg-gray-50">
+                      <span className="col-span-5 text-xs font-medium text-gray-400 uppercase tracking-wider">Email</span>
+                      <span className="col-span-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Estado</span>
+                      <span className="col-span-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Motivo</span>
+                      <span className="col-span-1 text-xs font-medium text-gray-400 uppercase tracking-wider text-right">Score</span>
+                    </div>
+                    {results.map((r) => (
+                      <div key={r.email} className="px-6 py-3 grid grid-cols-12 gap-4 items-center hover:bg-gray-50 transition-colors">
+                        <span className="col-span-5 text-sm font-mono text-gray-700 truncate">{r.email}</span>
+                        <span className="col-span-3"><StatusBadge status={r.status} /></span>
+                        <span className="col-span-3 text-xs text-gray-400 truncate">{r.reason}</span>
+                        <span className={`col-span-1 text-xs font-semibold text-right ${r.score >= 80 ? "text-emerald-600" : r.score >= 50 ? "text-amber-600" : r.score != null ? "text-red-500" : "text-gray-300"}`}>
+                          {r.score != null ? r.score : "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </>
+            );
+          })()}
         </>
       )}
     </div>
