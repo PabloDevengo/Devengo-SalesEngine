@@ -74,7 +74,7 @@ export default function CampaignModule() {
 
   // ── Send to N8N ───────────────────────────────────────────
   const enviar = async () => {
-    if (!webhookUrl.trim()) { setError("Añade la URL del webhook de N8N."); return; }
+    if (!webhookUrl.trim()) { setError("Webhook no configurado. Añade la URL en Configuración."); return; }
     setLoading(true); setError(null); setEmails(null); setUploadResult(null);
     try {
       const controller = new AbortController();
@@ -275,11 +275,6 @@ export default function CampaignModule() {
         </div>
         {showJson && canSend && <pre className="px-6 py-4 text-xs font-mono text-gray-600 bg-gray-50 overflow-x-auto leading-relaxed">{payloadJson}</pre>}
         <div className="px-6 py-4 border-t border-gray-100 space-y-3">
-          <div>
-            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Webhook URL <span className="text-gray-300 normal-case font-normal">(N8N)</span></label>
-            <input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} onBlur={e => setWebhook('emailgen', e.target.value)} placeholder="https://tu-n8n.com/webhook/email-generator"
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono" />
-          </div>
           {!canSend && (
             <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
               Faltan campos: {[!productoObj && "producto", !dominio.trim() && "dominio", personas.length === 0 && "personas"].filter(Boolean).join(", ")}
