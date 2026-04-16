@@ -61,9 +61,9 @@ export function AppProvider({ children }) {
   }, []);
 
   // ── Products setter (diff + sync) ─────────────────────────────────────────
-  const setProductos = useCallback(async (newList) => {
+  const setProductos = useCallback(async (newListOrFn) => {
     setProductosState(prev => {
-      // Run sync in background with the previous value for diffing
+      const newList = typeof newListOrFn === 'function' ? newListOrFn(prev) : newListOrFn;
       _syncProducts(prev, newList);
       return newList;
     });
@@ -88,8 +88,9 @@ export function AppProvider({ children }) {
   }
 
   // ── Clientes setter ────────────────────────────────────────────────────────
-  const setClientes = useCallback(async (newList) => {
+  const setClientes = useCallback(async (newListOrFn) => {
     setClientesState(prev => {
+      const newList = typeof newListOrFn === 'function' ? newListOrFn(prev) : newListOrFn;
       _syncClients(prev, newList);
       return newList;
     });
@@ -114,8 +115,9 @@ export function AppProvider({ children }) {
   }
 
   // ── Competidores setter ────────────────────────────────────────────────────
-  const setCompetidores = useCallback(async (newList) => {
+  const setCompetidores = useCallback(async (newListOrFn) => {
     setCompetidoresState(prev => {
+      const newList = typeof newListOrFn === 'function' ? newListOrFn(prev) : newListOrFn;
       _syncCompetitors(prev, newList);
       return newList;
     });

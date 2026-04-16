@@ -7,7 +7,7 @@ function dbToProduct(row) {
     ...rest,
     keyPersonas: key_personas ?? [],
     isMain: is_main ?? false,
-    subproducts: (subproducts ?? []).map(({ id, nombre, descripcion }) => ({
+    subproductos: (subproducts ?? []).map(({ id, nombre, descripcion }) => ({
       id,
       nombre,
       descripcion,
@@ -16,7 +16,8 @@ function dbToProduct(row) {
 }
 
 function productToDb(product) {
-  const { keyPersonas, isMain, subproducts: _subs, ...rest } = product
+  // Exclude both naming variants of subproducts so they don't get sent to the products table
+  const { keyPersonas, isMain, subproductos: _subs, subproducts: _subs2, ...rest } = product
   return {
     ...rest,
     key_personas: keyPersonas ?? [],
@@ -40,11 +41,15 @@ export async function saveProduct(product) {
 
   // Sync subproducts: delete all then reinsert
   await supabase.from('subproducts').delete().eq('product_id', product.id)
-  const subs = product.subproducts ?? []
+  const subs = product.subproductos ?? []
   if (subs.length > 0) {
     await supabase
       .from('subproducts')
-      .insert(subs.map(s => ({ ...s, product_id: product.id })))
+      .insert(subs.map(s => ({
+        nombre:      s.nombre      ?? '',
+        descripcion: s.descripcion ?? '',
+        product_id:  product.id,
+      })))
   }
 }
 
