@@ -274,17 +274,6 @@ export default function DiscoverModal({ seed, onClose, onAddCompetidor }) {
           {showConfig && (
             <div className="mt-3 space-y-3">
               <div>
-                <label className="text-xs text-gray-500 font-medium block mb-1">URL del webhook (N8N)</label>
-                <input
-                  type="text"
-                  value={webhookUrl}
-                  onChange={e => setWebhookUrl(e.target.value)}
-                  onBlur={e => setWebhook('lookalike', e.target.value)}
-                  placeholder="https://n8n.tudominio.com/webhook/..."
-                  className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white"
-                />
-              </div>
-              <div>
                 <label className="text-xs text-gray-500 font-medium block mb-1">Número de resultados</label>
                 <div className="flex gap-1.5">
                   {[10, 20, 50, 100].map(n => (

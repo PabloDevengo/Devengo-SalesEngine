@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useApp } from "../../context/AppContext";
 import PromptEditor from "../../components/PromptEditor";
-import { changePin, createPin } from "../../services/authService";
+import { changePin } from "../../services/authService";
 
 // ── Change PIN section ──────────────────────────────────────────────────────
 function PinSection() {
@@ -81,6 +81,28 @@ function PinSection() {
   );
 }
 
+// ── Webhook row ─────────────────────────────────────────────────────────────
+function WebhookRow({ label, description, value, onSave }) {
+  const [local, setLocal] = useState(value);
+  // Sync if parent value changes (loaded from Supabase)
+  useState(() => { setLocal(value); });
+
+  return (
+    <div className="py-4 border-b border-gray-100 last:border-0">
+      <p className="text-sm font-medium text-gray-700 mb-0.5">{label}</p>
+      {description && <p className="text-xs text-gray-400 mb-1.5">{description}</p>}
+      <input
+        type="text"
+        value={local || value}
+        onChange={e => setLocal(e.target.value)}
+        onBlur={e => onSave(e.target.value)}
+        placeholder="https://tu-n8n.com/webhook/..."
+        className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono bg-white"
+      />
+    </div>
+  );
+}
+
 // ── Main component ──────────────────────────────────────────────────────────
 export default function ConfigModule() {
   const {
@@ -90,18 +112,30 @@ export default function ConfigModule() {
     defaultCampaignPrompt,
     defaultMeetingPrompt,
     defaultEmailPrompt,
+    webhooks, setWebhook,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState("campaigns");
 
+  const WEBHOOKS = [
+    { key: "emailgen",     label: "📣 Email Generator",               description: "Genera secuencias de emails desde el módulo Campañas." },
+    { key: "instantly",    label: "📤 Instantly — subida de campañas", description: "Sube los emails generados a Instantly para su envío." },
+    { key: "meetings",     label: "🎙️ Reuniones",                      description: "Analiza transcripciones en el módulo de Reuniones." },
+    { key: "verification", label: "✉️ Verificación de emails",         description: "Verifica entregabilidad de listas de emails." },
+    { key: "prospect",     label: "🏢 Prospección · Empresas",         description: "Busca empresas prospecto según filtros." },
+    { key: "contacts",     label: "👤 Prospección · Contactos",        description: "Busca contactos dentro de las empresas prospecto." },
+    { key: "lookalike",    label: "🔍 Búsqueda lookalike (Playbook)",  description: "Busca empresas similares a clientes o competidores." },
+  ];
+
   return (
     <div className="px-8 py-6 max-w-3xl w-full space-y-5">
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit flex-wrap">
         {[
-          ["campaigns", "📣 Campañas"],
-          ["meetings",  "🎙️ Reuniones"],
-          ["emails",    "✉️ Emails"],
-          ["general",   "⚙️ General"],
+          ["campaigns",     "📣 Campañas"],
+          ["meetings",      "🎙️ Reuniones"],
+          ["emails",        "✉️ Emails"],
+          ["integraciones", "🔗 Integraciones"],
+          ["general",       "⚙️ General"],
         ].map(([id, lbl]) => (
           <button key={id} onClick={() => setActiveTab(id)}
             className={`text-xs px-4 py-1.5 rounded-md font-medium transition-all ${activeTab === id ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
@@ -138,6 +172,28 @@ export default function ConfigModule() {
           onChange={setEmailPrompt}
           defaultValue={defaultEmailPrompt}
         />
+      )}
+
+      {activeTab === "integraciones" && (
+        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-800">Webhooks N8N</h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Las URLs se comparten con todo el equipo. Los cambios se guardan al salir del campo.
+            </p>
+          </div>
+          <div className="px-6">
+            {WEBHOOKS.map(({ key, label, description }) => (
+              <WebhookRow
+                key={key}
+                label={label}
+                description={description}
+                value={webhooks[key] ?? ""}
+                onSave={val => setWebhook(key, val)}
+              />
+            ))}
+          </div>
+        </div>
       )}
 
       {activeTab === "general" && (

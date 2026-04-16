@@ -363,12 +363,6 @@ export default function CampaignModule() {
             <p className="text-xs text-gray-400">
               Envía los emails editados a N8N para que cree la campaña en Instantly con el dominio <strong className="text-gray-600">{dominio}</strong> y {personas.length} persona{personas.length !== 1 ? "s" : ""}.
             </p>
-            <div>
-              <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Webhook N8N → Instantly</label>
-              <input value={instantlyUrl} onChange={e => setInstantlyUrl(e.target.value)} onBlur={e => setWebhook('instantly', e.target.value)} placeholder="https://tu-n8n.com/webhook/instantly"
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono" />
-            </div>
-
             {uploadResult?.ok && (
               <div className="bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-3 text-xs text-emerald-700 font-medium">
                 ✅ {uploadResult.message}

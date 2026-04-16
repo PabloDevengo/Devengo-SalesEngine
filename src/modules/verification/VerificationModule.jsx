@@ -333,15 +333,9 @@ export default function VerificationModule() {
                 </p>
               </div>
             ) : (
-              <div>
-                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Webhook N8N</label>
-                <input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} onBlur={e => setWebhook('verification', e.target.value)}
-                  placeholder="https://tu-n8n.com/webhook/verification"
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono" />
-                <p className="text-xs text-gray-400 mt-1.5">
-                  El webhook recibirá <code className="bg-gray-100 px-1 rounded">{"{ emails: [...] }"}</code> y debe devolver un array con <code className="bg-gray-100 px-1 rounded">status</code>, <code className="bg-gray-100 px-1 rounded">reason</code> y <code className="bg-gray-100 px-1 rounded">score</code> por email.
-                </p>
-              </div>
+              <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
+                Webhook configurado en <strong>Configuración → Integraciones</strong>.
+              </p>
             )}
 
             {/* Progress + button */}

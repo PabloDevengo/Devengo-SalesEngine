@@ -155,16 +155,6 @@ export default function MeetingsModule() {
                 </span>
                 <span className="text-xs text-gray-400">{useN8N ? "El análisis lo procesa tu workflow de N8N" : "Llama directamente a la API de Claude"}</span>
               </div>
-              <div>
-                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1">
-                  Webhook N8N <span className="normal-case font-normal text-gray-300">(opcional — si está vacío usa Claude directo)</span>
-                </label>
-                <input value={webhookUrl}
-                  onChange={e => setWebhookUrl(e.target.value)}
-                  onBlur={e => setWebhook('meetings', e.target.value)}
-                  placeholder="https://tu-n8n.com/webhook/meetings"
-                  className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono" />
-              </div>
             </div>
           </section>
 
