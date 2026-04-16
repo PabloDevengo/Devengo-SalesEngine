@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   Building2, Globe, MapPin, Tag, Plus, Edit3, Save, X,
   ChevronDown, ChevronRight, Package, Trash2, Check,
-  Layers, Star, Quote, Target, Link, Users,
+  Layers, Star, Quote, Target, Link, Users, Search,
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { useData } from "../../utils/dataLoader";
@@ -10,6 +10,7 @@ import Field from "../../components/ui/Field";
 import Input from "../../components/ui/Input";
 import Val from "../../components/ui/Val";
 import Empty from "../../components/ui/Empty";
+import DiscoverModal from "../../components/DiscoverModal";
 
 // ── Constants ─────────────────────────────────────────────
 const KEY_PERSONAS = ["CFO", "COO", "Head of Treasury", "Head of Operations", "Compliance Director", "CEO"];
@@ -230,6 +231,22 @@ export default function KnowledgeModule() {
   const cancelEditCliente = ()   => { setEditingClienteId(null); setEditClienteDraft(null); };
   const saveTestimonial   = (id, t) => { setClientes(cs => cs.map(c => c.id === id ? { ...c, testimonial: t } : c)); setEditingTestimonial(null); };
   const removeTestimonial = (id) => setClientes(cs => cs.map(c => c.id === id ? { ...c, testimonial: null } : c));
+
+  // ── Discover modal ────────────────────────────────────────
+  const [discoverSeed, setDiscoverSeed] = useState(null);
+  // null | { tipo: 'cliente'|'competidor', data: object }
+
+  function handleAddCompetidor(company) {
+    setCompetidores(cs => [...cs, {
+      id:          Date.now(),
+      nombre:      company.name   ?? company.nombre ?? '',
+      web:         company.domain ?? company.web    ?? '',
+      producto:    '',
+      ventajas:    '',
+      desventajas: '',
+      geografias:  company.countries ?? [],
+    }]);
+  }
 
   // ── Competitors ───────────────────────────────────────────
   const [addingComp,    setAddingComp]    = useState(false);
@@ -471,6 +488,7 @@ export default function KnowledgeModule() {
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                    <button onClick={() => setDiscoverSeed({ tipo: 'cliente', data: cliente })} title="Buscar empresas similares" className="text-gray-200 hover:text-indigo-500 transition-colors px-1"><Search size={13} /></button>
                     <button onClick={() => setEditingTestimonial(editingTestimonial === cliente.id ? null : cliente.id)} title={cliente.testimonial ? "Editar testimonial" : "Añadir testimonial"}
                       className={`transition-colors px-1 ${cliente.testimonial ? "text-blue-400 hover:text-blue-600" : "text-gray-200 hover:text-blue-400"}`}><Quote size={13} /></button>
                     {cliente.testimonial && <button onClick={() => removeTestimonial(cliente.id)} title="Quitar testimonial" className="text-gray-200 hover:text-red-400 transition-colors px-1"><X size={12} /></button>}
@@ -538,6 +556,7 @@ export default function KnowledgeModule() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                      <button onClick={() => setDiscoverSeed({ tipo: 'competidor', data: comp })} title="Buscar empresas similares" className="text-gray-200 hover:text-violet-500 transition-colors px-1"><Search size={13} /></button>
                       <button onClick={() => startEditComp(comp)} className="text-gray-200 hover:text-indigo-500 transition-colors px-1"><Edit3 size={13} /></button>
                       <button onClick={() => removeComp(comp.id)} className="text-gray-200 hover:text-red-400 transition-colors shrink-0"><Trash2 size={13} /></button>
                     </div>
@@ -554,6 +573,15 @@ export default function KnowledgeModule() {
           ))}
         </div>
       </Section>
+
+      {/* ── Discover modal ── */}
+      {discoverSeed && (
+        <DiscoverModal
+          seed={discoverSeed}
+          onClose={() => setDiscoverSeed(null)}
+          onAddCompetidor={handleAddCompetidor}
+        />
+      )}
     </div>
   );
 }
