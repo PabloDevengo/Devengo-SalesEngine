@@ -46,7 +46,7 @@ export default function CampaignModule() {
   );
 
   // ── Payload builder ───────────────────────────────────────
-  const productoObj = productos.find(p => p.id === productoId) || null;
+  const productoObj = productos.find(p => String(p.id) === String(productoId)) || null;
 
   const buildPayload = () => ({
     producto: productoObj
