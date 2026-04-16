@@ -279,12 +279,14 @@ export default function CampaignModule() {
               className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono" />
           </div>
           {!canSend && (
-            <p className="text-xs text-gray-400">Selecciona un producto, añade al menos una persona y un dominio para activar el envío.</p>
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              Faltan campos: {[!productoObj && "producto", !dominio.trim() && "dominio", personas.length === 0 && "personas"].filter(Boolean).join(", ")}
+            </p>
           )}
-          <button onClick={enviar} disabled={loading || !canSend || !webhookUrl.trim()}
+          <button onClick={enviar} disabled={loading || !canSend}
             className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
               loading ? "bg-indigo-100 text-indigo-400 cursor-not-allowed"
-              : !canSend || !webhookUrl.trim() ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              : !canSend ? "bg-gray-100 text-gray-400 cursor-not-allowed"
               : "bg-indigo-600 text-white hover:bg-indigo-700"}`}>
             {loading
               ? <><span className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />Generando emails...</>
