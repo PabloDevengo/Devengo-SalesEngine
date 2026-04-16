@@ -6,6 +6,7 @@ import { getProducts, saveProduct, deleteProduct } from "../services/productsSer
 import { getClients, saveClient, deleteClient } from "../services/clientsService";
 import { getCompetitors, saveCompetitor, deleteCompetitor } from "../services/competitorsService";
 import { getPrompts, setPrompt } from "../services/promptsService";
+import { getWebhooks, saveWebhook } from "../services/webhooksService";
 
 const AppContext = createContext(null);
 
@@ -18,6 +19,10 @@ export function AppProvider({ children }) {
   const [campaignPrompt, setCampaignPromptState] = useState(null);
   const [meetingPrompt,  setMeetingPromptState]  = useState(null);
   const [emailPrompt,    setEmailPromptState]    = useState(null);
+  const [webhooks,       setWebhooksState]       = useState({
+    prospect: '', contacts: '', lookalike: '',
+    emailgen: '', instantly: '', meetings: '', verification: '',
+  });
   const [dbLoading,      setDbLoading]           = useState(true);
 
   // ── Remote defaults (from /public/data/prompts.json) ──────────────────────
@@ -31,8 +36,9 @@ export function AppProvider({ children }) {
       getClients(),
       getCompetitors(),
       getPrompts(),
+      getWebhooks(),
     ])
-      .then(([co, prods, clients, comps, prompts]) => {
+      .then(([co, prods, clients, comps, prompts, hooks]) => {
         if (co) setCompanyState(co);
         setProductosState(prods);
         setClientesState(clients);
@@ -40,6 +46,7 @@ export function AppProvider({ children }) {
         if (prompts.campaign !== null) setCampaignPromptState(prompts.campaign);
         if (prompts.meeting  !== null) setMeetingPromptState(prompts.meeting);
         if (prompts.email    !== null) setEmailPromptState(prompts.email);
+        setWebhooksState(hooks);
       })
       .catch(err => console.error("[AppContext] Supabase load failed:", err))
       .finally(() => setDbLoading(false));
@@ -141,6 +148,13 @@ export function AppProvider({ children }) {
     }
   }
 
+  // ── Webhook setter ─────────────────────────────────────────────────────────
+  const setWebhook = useCallback(async (key, value) => {
+    setWebhooksState(prev => ({ ...prev, [key]: value }));
+    try { await saveWebhook(key, value); }
+    catch (e) { console.error("[webhooks] save error", e); }
+  }, []);
+
   // ── Prompt setters ─────────────────────────────────────────────────────────
   const setCampaignPrompt = useCallback(async (val) => {
     setCampaignPromptState(val);
@@ -170,6 +184,9 @@ export function AppProvider({ children }) {
       productos,      setProductos,
       clientes,       setClientes,
       competidores,   setCompetidores,
+
+      // Webhooks N8N
+      webhooks, setWebhook,
 
       // Prompts (user value, falls back to "" while loading)
       campaignPrompt: campaignPrompt ?? "",

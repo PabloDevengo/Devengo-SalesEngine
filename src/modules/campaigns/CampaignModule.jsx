@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Zap, Copy, Send, RefreshCw, X } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 
 export default function CampaignModule() {
-  const { productos, clientes, campaignPrompt } = useApp();
+  const { productos, clientes, campaignPrompt, webhooks, setWebhook } = useApp();
   const clientesPublicos = clientes.filter(c => c.visibilidad === "publico");
 
   // ── Form state ────────────────────────────────────────────
@@ -18,6 +18,7 @@ export default function CampaignModule() {
   // ── Send state ────────────────────────────────────────────
   const [webhookUrl,    setWebhookUrl]    = useState(import.meta.env.VITE_N8N_EMAILGEN_WEBHOOK || "");
   const [loading,       setLoading]       = useState(false);
+  useEffect(() => { if (webhooks.emailgen) setWebhookUrl(webhooks.emailgen); }, [webhooks.emailgen]);
   const [error,         setError]         = useState(null);
   const [showJson,      setShowJson]      = useState(false);
   const [copied,        setCopied]        = useState(null);
@@ -27,6 +28,7 @@ export default function CampaignModule() {
 
   // ── Instantly state ───────────────────────────────────────
   const [instantlyUrl,  setInstantlyUrl]  = useState(import.meta.env.VITE_N8N_INSTANTLY_WEBHOOK || "");
+  useEffect(() => { if (webhooks.instantly) setInstantlyUrl(webhooks.instantly); }, [webhooks.instantly]);
   const [uploading,     setUploading]     = useState(false);
   const [uploadResult,  setUploadResult]  = useState(null); // { ok, message }
   const [uploadError,   setUploadError]   = useState(null);
@@ -275,7 +277,7 @@ export default function CampaignModule() {
         <div className="px-6 py-4 border-t border-gray-100 space-y-3">
           <div>
             <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Webhook URL <span className="text-gray-300 normal-case font-normal">(N8N)</span></label>
-            <input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} placeholder="https://tu-n8n.com/webhook/email-generator"
+            <input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} onBlur={e => setWebhook('emailgen', e.target.value)} placeholder="https://tu-n8n.com/webhook/email-generator"
               className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono" />
           </div>
           {!canSend && (
@@ -368,7 +370,7 @@ export default function CampaignModule() {
             </p>
             <div>
               <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Webhook N8N → Instantly</label>
-              <input value={instantlyUrl} onChange={e => setInstantlyUrl(e.target.value)} placeholder="https://tu-n8n.com/webhook/instantly"
+              <input value={instantlyUrl} onChange={e => setInstantlyUrl(e.target.value)} onBlur={e => setWebhook('instantly', e.target.value)} placeholder="https://tu-n8n.com/webhook/instantly"
                 className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono" />
             </div>
 

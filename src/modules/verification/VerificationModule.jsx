@@ -1,5 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Upload, Zap, Copy, Download, X, CheckCircle, AlertTriangle, XCircle, HelpCircle } from "lucide-react";
+import { useApp } from "../../context/AppContext";
 
 // ── Status config ─────────────────────────────────────────
 const STATUS_CFG = {
@@ -41,6 +42,7 @@ function StatusBadge({ status }) {
 
 // ═════════════════════════════════════════════════════════
 export default function VerificationModule() {
+  const { webhooks, setWebhook } = useApp();
   const fileRef = useRef();
 
   // ── Input mode ──
@@ -56,6 +58,7 @@ export default function VerificationModule() {
   const [apiMode,     setApiMode]     = useState("bouncer"); // "bouncer" | "n8n"
   const [bouncerKey,  setBouncerKey]  = useState(import.meta.env.VITE_BOUNCER_API_KEY || "");
   const [webhookUrl,  setWebhookUrl]  = useState(import.meta.env.VITE_N8N_VERIFICATION_WEBHOOK || "");
+  useEffect(() => { if (webhooks.verification) setWebhookUrl(webhooks.verification); }, [webhooks.verification]);
 
   // ── Verification state ──
   const [verifying,   setVerifying]   = useState(false);
@@ -332,7 +335,7 @@ export default function VerificationModule() {
             ) : (
               <div>
                 <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Webhook N8N</label>
-                <input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)}
+                <input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} onBlur={e => setWebhook('verification', e.target.value)}
                   placeholder="https://tu-n8n.com/webhook/verification"
                   className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono" />
                 <p className="text-xs text-gray-400 mt-1.5">

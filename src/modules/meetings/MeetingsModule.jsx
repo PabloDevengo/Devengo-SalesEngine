@@ -1,9 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Zap, X, Copy } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 
 export default function MeetingsModule() {
-  const { meetingPrompt } = useApp();
+  const { meetingPrompt, webhooks, setWebhook } = useApp();
 
   const [transcript,    setTranscript]    = useState(null);
   const [fileName,      setFileName]      = useState(null);
@@ -14,6 +14,8 @@ export default function MeetingsModule() {
   const [analysisError, setAnalysisError] = useState(null);
   const [webhookUrl,    setWebhookUrl]    = useState(import.meta.env.VITE_N8N_MEETINGS_WEBHOOK || "");
   const inputRef = useRef();
+
+  useEffect(() => { if (webhooks.meetings) setWebhookUrl(webhooks.meetings); }, [webhooks.meetings]);
 
   // Whether to use N8N or call Claude directly
   const useN8N = webhookUrl.trim().length > 0;
@@ -157,7 +159,9 @@ export default function MeetingsModule() {
                 <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1">
                   Webhook N8N <span className="normal-case font-normal text-gray-300">(opcional — si está vacío usa Claude directo)</span>
                 </label>
-                <input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)}
+                <input value={webhookUrl}
+                  onChange={e => setWebhookUrl(e.target.value)}
+                  onBlur={e => setWebhook('meetings', e.target.value)}
                   placeholder="https://tu-n8n.com/webhook/meetings"
                   className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono" />
               </div>

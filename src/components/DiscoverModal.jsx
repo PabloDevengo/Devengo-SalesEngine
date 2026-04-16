@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Search, ChevronDown, ChevronRight, Plus, Check, AlertCircle, Loader2 } from "lucide-react";
+import { useApp } from "../context/AppContext";
 import { saveCompanies } from "../services/prospectsService";
 
 // ── Results table ────────────────────────────────────────────────────────────
@@ -59,10 +60,12 @@ function CompanyRow({ company, tipo, added, onAdd }) {
 
 // ── Main modal ───────────────────────────────────────────────────────────────
 export default function DiscoverModal({ seed, onClose, onAddCompetidor }) {
+  const { webhooks, setWebhook } = useApp();
   const { tipo, data } = seed;
   const seedName = data.nombre ?? data.name ?? "";
 
   const [webhookUrl,  setWebhookUrl]  = useState(import.meta.env.VITE_N8N_LOOKALIKE_WEBHOOK || "");
+  useEffect(() => { if (webhooks.lookalike) setWebhookUrl(webhooks.lookalike); }, [webhooks.lookalike]);
   const [numResults,  setNumResults]  = useState(20);
   const [loading,     setLoading]     = useState(false);
   const [results,     setResults]     = useState(null);
@@ -70,10 +73,14 @@ export default function DiscoverModal({ seed, onClose, onAddCompetidor }) {
   const [added,       setAdded]       = useState(new Set());
   const [showConfig,  setShowConfig]  = useState(false);
 
-  // ── Auto-launch on open ───────────────────────────────────────────────────
+  // ── Auto-launch once webhook URL is ready ────────────────────────────────
+  const [launched, setLaunched] = useState(false);
   useEffect(() => {
-    buscar();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!launched && !loading) {
+      setLaunched(true);
+      buscar();
+    }
+  }, [webhookUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Build payload ─────────────────────────────────────────────────────────
   function buildPayload() {
@@ -272,6 +279,7 @@ export default function DiscoverModal({ seed, onClose, onAddCompetidor }) {
                   type="text"
                   value={webhookUrl}
                   onChange={e => setWebhookUrl(e.target.value)}
+                  onBlur={e => setWebhook('lookalike', e.target.value)}
                   placeholder="https://n8n.tudominio.com/webhook/..."
                   className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white"
                 />

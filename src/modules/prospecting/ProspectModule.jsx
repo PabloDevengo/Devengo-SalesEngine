@@ -199,7 +199,7 @@ function ContactTable({ contacts, onDelete }) {
 
 // ── Main component ──────────────────────────────────────────────────────────
 export default function ProspectModule() {
-  const { clientes } = useApp();
+  const { clientes, webhooks, setWebhook } = useApp();
   const { data: geografias = [] } = useData("geografias");
   const { data: tamanos    = [] } = useData("tamanos");
 
@@ -215,6 +215,7 @@ export default function ProspectModule() {
   const [lookalike,      setLookalike]      = useState("");
   const [numResults,     setNumResults]     = useState(20);
   const [webhookUrl,     setWebhookUrl]     = useState(import.meta.env.VITE_N8N_PROSPECT_WEBHOOK || "");
+  useEffect(() => { if (webhooks.prospect) setWebhookUrl(webhooks.prospect); }, [webhooks.prospect]);
   const [showJson,       setShowJson]       = useState(false);
   const [loading,        setLoading]        = useState(false);
   const [error,          setError]          = useState(null);
@@ -229,6 +230,7 @@ export default function ProspectModule() {
   const [preselectedCompanies, setPreselectedCompanies] = useState([]);
   const [contactNumResults,    setContactNumResults]    = useState(20);
   const [contactWebhookUrl,    setContactWebhookUrl]    = useState(import.meta.env.VITE_N8N_CONTACTS_WEBHOOK || "");
+  useEffect(() => { if (webhooks.contacts) setContactWebhookUrl(webhooks.contacts); }, [webhooks.contacts]);
   const [contactLoading,       setContactLoading]       = useState(false);
   const [contactError,         setContactError]         = useState(null);
   const [contactResults,       setContactResults]       = useState(null);
@@ -546,7 +548,7 @@ export default function ProspectModule() {
               <div className="px-6 py-4 border-t border-gray-100 space-y-3">
                 <div>
                   <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Webhook URL</label>
-                  <input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} placeholder="https://tu-n8n.com/webhook/..."
+                  <input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} onBlur={e => setWebhook('prospect', e.target.value)} placeholder="https://tu-n8n.com/webhook/..."
                     className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono" />
                 </div>
                 <button onClick={enviar} disabled={loading || !webhookUrl.trim()}
@@ -784,7 +786,7 @@ export default function ProspectModule() {
               {/* Webhook */}
               <div>
                 <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Webhook N8N</label>
-                <input value={contactWebhookUrl} onChange={e => setContactWebhookUrl(e.target.value)}
+                <input value={contactWebhookUrl} onChange={e => setContactWebhookUrl(e.target.value)} onBlur={e => setWebhook('contacts', e.target.value)}
                   placeholder="https://tu-n8n.com/webhook/contacts"
                   className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 font-mono" />
               </div>
