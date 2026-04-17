@@ -142,6 +142,52 @@ const SURFE_INDUSTRIES = [
   "Wired Telecommunications","Wireless","Women's","Wood Processing","Young Adults",
 ];
 
+// ── Response helpers (unwrap + normalize contact shape) ───────────────────
+// El webhook de Serper devuelve `[{ contactos: [...] }]` o variantes.
+// El de Surfe devuelve un array llano o `{ contacts: [...] }` / `{ results: [...] }`.
+// Esto unifica ambos a una lista plana de objetos-contacto.
+function unwrapContactList(data) {
+  if (!data) return [];
+  if (Array.isArray(data)) {
+    if (data.length === 0) return [];
+    const first = data[0];
+    if (Array.isArray(first)) return first;
+    if (first && typeof first === "object") {
+      // Wrapper object: { contactos|contacts|results|items: [...] }
+      if (Array.isArray(first.contactos)) return first.contactos;
+      if (Array.isArray(first.contacts))  return first.contacts;
+      if (Array.isArray(first.results))   return first.results;
+      if (Array.isArray(first.items))     return first.items;
+      // Heuristic: first entry already looks like a contact (has nombre/email).
+      if ("nombre" in first || "email" in first || "cargo" in first) return data;
+    }
+    return data;
+  }
+  if (typeof data === "object") {
+    return data.contactos ?? data.contacts ?? data.results ?? data.items ?? [];
+  }
+  return [];
+}
+
+// Normaliza un contacto a la forma interna (compatible con ambos flujos).
+function normalizeContact(c, idx = 0) {
+  if (!c || typeof c !== "object") return null;
+  return {
+    id:             c.id ?? null,
+    nombre:         c.nombre         ?? c.name        ?? "",
+    apellidos:      c.apellidos      ?? c.last_name   ?? "",
+    cargo:          c.cargo          ?? c.title       ?? c.position ?? "",
+    email:          c.email          ?? null,
+    telefono:       c.telefono       ?? c.phone       ?? null,
+    linkedin:       c.linkedin       ?? null,
+    company_nombre: c.company_nombre ?? c.empresa     ?? c.company  ?? "",
+    company_domain: c.company_domain ?? c.dominio     ?? c.domain   ?? "",
+    fuente:         c.fuente         ?? c.source      ?? c.source_url ?? null,
+    // id temporal para selección bulk cuando el webhook no devuelve uno.
+    _tmpId: `tmp-${Date.now()}-${idx}`,
+  };
+}
+
 // ── DevengoSelector — reusable Industry Devengo picker (outside main) ──────
 function DevengoSelector({ industriesDevengo, selectedIds, onToggle, search, setSearch, emptyLabel }) {
   const q = search.trim().toLowerCase();
@@ -198,6 +244,7 @@ function ContactTable({ contacts, onDelete, onAddToVerify, selectedIds, onToggle
   const selectable = !!(selectedIds && onToggleId);
   const selectableIds = contacts.filter(c => c.email).map(c => c.id).filter(Boolean);
   const allSelected = selectable && selectableIds.length > 0 && selectableIds.every(id => selectedIds.has(id));
+  const anyFuente = contacts.some(c => c.fuente);
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -214,12 +261,15 @@ function ContactTable({ contacts, onDelete, onAddToVerify, selectedIds, onToggle
             <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Email</th>
             <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Teléfono</th>
             <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Empresa</th>
+            {anyFuente && (
+              <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Fuente</th>
+            )}
             <th className="px-4 py-2.5 w-10"></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-50">
           {contacts.map((c, idx) => (
-            <tr key={c.id ?? idx} className="hover:bg-gray-50 transition-colors group">
+            <tr key={c.id ?? c._tmpId ?? idx} className="hover:bg-gray-50 transition-colors group">
               {selectable && (
                 <td className="px-4 py-3">
                   {c.email && c.id && (
@@ -229,7 +279,7 @@ function ContactTable({ contacts, onDelete, onAddToVerify, selectedIds, onToggle
                 </td>
               )}
               <td className="px-4 py-3">
-                <p className="font-medium text-gray-800 text-sm">{c.nombre} {c.apellidos}</p>
+                <p className="font-medium text-gray-800 text-sm">{[c.nombre, c.apellidos].filter(Boolean).join(" ") || "—"}</p>
                 {c.linkedin && (
                   <a href={c.linkedin} target="_blank" rel="noreferrer"
                     className="text-xs text-indigo-400 hover:text-indigo-600">LinkedIn →</a>
@@ -249,6 +299,18 @@ function ContactTable({ contacts, onDelete, onAddToVerify, selectedIds, onToggle
                     className="text-xs text-gray-400 hover:text-indigo-600 font-mono">{c.company_domain}</a>
                 )}
               </td>
+              {anyFuente && (
+                <td className="px-4 py-3">
+                  {c.fuente
+                    ? <a href={c.fuente} target="_blank" rel="noreferrer"
+                        title={c.fuente}
+                        className="inline-flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 hover:underline">
+                        <ExternalLink size={10} />
+                        {(() => { try { return new URL(c.fuente).hostname.replace(/^www\./, ""); } catch { return "ver"; } })()}
+                      </a>
+                    : <span className="text-xs text-gray-300">—</span>}
+                </td>
+              )}
               <td className="px-4 py-3">
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                   {onAddToVerify && c.email && (
@@ -257,7 +319,7 @@ function ContactTable({ contacts, onDelete, onAddToVerify, selectedIds, onToggle
                       <Inbox size={13} />
                     </button>
                   )}
-                  {onDelete && (
+                  {onDelete && c.id && (
                     <button onClick={() => onDelete(c.id)}
                       className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg">
                       <Trash2 size={13} />
@@ -570,7 +632,7 @@ export default function ProspectModule() {
       clearTimeout(timeout);
       if (!res.ok) { setContactError(`Error HTTP ${res.status} desde N8N.`); return; }
       const data = await res.json();
-      const list = Array.isArray(data) ? data : (data.contacts ?? data.results ?? []);
+      const list = unwrapContactList(data).map(normalizeContact).filter(Boolean);
       setContactResults(list);
       if (list.length > 0) {
         saveContacts(list).then(() => getContacts().then(setSavedContacts)).catch(console.error);
@@ -604,7 +666,7 @@ export default function ProspectModule() {
       clearTimeout(timeout);
       if (!res.ok) { setContactError(`Error HTTP ${res.status} desde N8N.`); return; }
       const data = await res.json();
-      const list = Array.isArray(data) ? data : (data.contacts ?? data.results ?? []);
+      const list = unwrapContactList(data).map(normalizeContact).filter(Boolean);
       setContactResults(list);
       if (list.length > 0) {
         saveContacts(list).then(() => getContacts().then(setSavedContacts)).catch(console.error);

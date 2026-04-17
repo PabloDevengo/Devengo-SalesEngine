@@ -43,8 +43,9 @@ export async function saveContacts(contacts) {
     email:          c.email          ?? '',
     telefono:       c.telefono       ?? '',
     linkedin:       c.linkedin       ?? '',
-    company_nombre: c.company_nombre ?? '',
-    company_domain: c.company_domain ?? '',
+    company_nombre: c.company_nombre ?? c.empresa ?? '',
+    company_domain: c.company_domain ?? c.dominio ?? '',
+    fuente:         c.fuente         ?? '',
   }))
   const { error } = await supabase.from('prospect_contacts').insert(rows)
   if (error) throw error
