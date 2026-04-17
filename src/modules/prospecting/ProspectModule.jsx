@@ -143,28 +143,58 @@ const SURFE_INDUSTRIES = [
 ];
 
 // ── Response helpers (unwrap + normalize contact shape) ───────────────────
-// El webhook de Serper devuelve `[{ contactos: [...] }]` o variantes.
-// El de Surfe devuelve un array llano o `{ contacts: [...] }` / `{ results: [...] }`.
-// Esto unifica ambos a una lista plana de objetos-contacto.
-function unwrapContactList(data) {
-  if (!data) return [];
+// Desenrolla cualquier variante plausible de respuesta (Surfe, Serper, N8N
+// Respond to Webhook con distintos "Respond With"):
+//   array llano de contactos
+//   [{ contactos|contacts|results|items: [...] }]
+//   [{ output: { contactos: [...] } }]             ← N8N Code node
+//   [{ json:   { contactos: [...] } }]             ← N8N binary mode
+//   [[ { contactos: [...] } ]]                     ← doble wrap
+//   { data: { ... } }, { body: { ... } }, etc.
+function looksLikeContact(obj) {
+  return obj && typeof obj === "object" &&
+    ("nombre" in obj || "email" in obj || "cargo" in obj ||
+     "empresa" in obj || "fuente" in obj || "company_nombre" in obj);
+}
+
+function unwrapContactList(data, depth = 0) {
+  if (!data || depth > 5) return [];
   if (Array.isArray(data)) {
     if (data.length === 0) return [];
     const first = data[0];
-    if (Array.isArray(first)) return first;
+    if (Array.isArray(first)) return unwrapContactList(first, depth + 1);
     if (first && typeof first === "object") {
-      // Wrapper object: { contactos|contacts|results|items: [...] }
+      // Heurística: si el primer elemento ya es un contacto, el array entero es la lista.
+      if (looksLikeContact(first)) return data;
+      // Wrappers conocidos (contacts en cualquier clave familiar).
       if (Array.isArray(first.contactos)) return first.contactos;
       if (Array.isArray(first.contacts))  return first.contacts;
       if (Array.isArray(first.results))   return first.results;
       if (Array.isArray(first.items))     return first.items;
-      // Heuristic: first entry already looks like a contact (has nombre/email).
-      if ("nombre" in first || "email" in first || "cargo" in first) return data;
+      // N8N: el payload real suele colgar de `output`, `json`, `data`, `body`.
+      if (first.output !== undefined) return unwrapContactList(first.output, depth + 1);
+      if (first.json   !== undefined) return unwrapContactList(first.json,   depth + 1);
+      if (first.data   !== undefined) return unwrapContactList(first.data,   depth + 1);
+      if (first.body   !== undefined) return unwrapContactList(first.body,   depth + 1);
+      // Último recurso: buscar cualquier valor que sea un array de contactos.
+      for (const v of Object.values(first)) {
+        if (Array.isArray(v) && v.length > 0 && looksLikeContact(v[0])) return v;
+      }
     }
-    return data;
+    return [];
   }
   if (typeof data === "object") {
-    return data.contactos ?? data.contacts ?? data.results ?? data.items ?? [];
+    if (Array.isArray(data.contactos)) return data.contactos;
+    if (Array.isArray(data.contacts))  return data.contacts;
+    if (Array.isArray(data.results))   return data.results;
+    if (Array.isArray(data.items))     return data.items;
+    if (data.output !== undefined) return unwrapContactList(data.output, depth + 1);
+    if (data.json   !== undefined) return unwrapContactList(data.json,   depth + 1);
+    if (data.data   !== undefined) return unwrapContactList(data.data,   depth + 1);
+    if (data.body   !== undefined) return unwrapContactList(data.body,   depth + 1);
+    for (const v of Object.values(data)) {
+      if (Array.isArray(v) && v.length > 0 && looksLikeContact(v[0])) return v;
+    }
   }
   return [];
 }
@@ -379,6 +409,7 @@ export default function ProspectModule() {
   const [contactLoading,       setContactLoading]       = useState(false);
   const [contactError,         setContactError]         = useState(null);
   const [contactResults,       setContactResults]       = useState(null);
+  const [contactRawResponse,   setContactRawResponse]   = useState(null); // para debug cuando no se parsea nada
   const [savedContacts,        setSavedContacts]        = useState([]);
   const [contactSearch,        setContactSearch]        = useState("");
   const [selectedResultIds,    setSelectedResultIds]    = useState(new Set());
@@ -618,7 +649,7 @@ export default function ProspectModule() {
 
   const enviarContactos = async () => {
     if (!contactWebhookUrl.trim()) { setContactError("Pega la URL del webhook de N8N."); return; }
-    setContactLoading(true); setContactError(null); setContactResults(null);
+    setContactLoading(true); setContactError(null); setContactResults(null); setContactRawResponse(null);
     try {
       const payload = {
         tipo: "contacto",
@@ -632,6 +663,8 @@ export default function ProspectModule() {
       clearTimeout(timeout);
       if (!res.ok) { setContactError(`Error HTTP ${res.status} desde N8N.`); return; }
       const data = await res.json();
+      console.log("[prospect] contactos webhook raw response →", data);
+      setContactRawResponse(data);
       const list = unwrapContactList(data).map(normalizeContact).filter(Boolean);
       setContactResults(list);
       if (list.length > 0) {
@@ -645,7 +678,7 @@ export default function ProspectModule() {
   const enviarContactosPorIndustria = async () => {
     if (!contactWebhookUrl.trim()) { setContactError("Pega la URL del webhook de N8N."); return; }
     if (contactDevengoIds.length === 0) { setContactError("Selecciona al menos una Industry Devengo."); return; }
-    setContactLoading(true); setContactError(null); setContactResults(null);
+    setContactLoading(true); setContactError(null); setContactResults(null); setContactRawResponse(null);
     try {
       const selected = industriesDevengo.filter(v => contactDevengoIds.includes(v.id));
       const payload = {
@@ -666,6 +699,8 @@ export default function ProspectModule() {
       clearTimeout(timeout);
       if (!res.ok) { setContactError(`Error HTTP ${res.status} desde N8N.`); return; }
       const data = await res.json();
+      console.log("[prospect] contactos webhook raw response →", data);
+      setContactRawResponse(data);
       const list = unwrapContactList(data).map(normalizeContact).filter(Boolean);
       setContactResults(list);
       if (list.length > 0) {
@@ -1261,6 +1296,29 @@ export default function ProspectModule() {
           </section>
 
           {contactError && <div className="bg-red-50 border border-red-100 rounded-xl px-5 py-4 text-xs text-red-600 font-mono">{contactError}</div>}
+
+          {/* Diagnóstico: respuesta recibida pero parseo 0 contactos */}
+          {contactRawResponse && contactResults && contactResults.length === 0 && (
+            <section className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-amber-600">⚠️</span>
+                <p className="text-xs font-semibold text-amber-800">
+                  El webhook respondió pero no he encontrado contactos dentro.
+                </p>
+              </div>
+              <p className="text-xs text-amber-700">
+                Revisa el shape en la consola del navegador (<span className="font-mono">[prospect] contactos webhook raw response</span>).
+                La UI busca los contactos en <span className="font-mono">contactos / contacts / results / items</span>,
+                y desciende por <span className="font-mono">output / json / data / body</span> si están envueltos (N8N).
+              </p>
+              <details className="mt-2">
+                <summary className="text-xs text-amber-700 cursor-pointer hover:text-amber-900">Ver respuesta cruda</summary>
+                <pre className="mt-2 text-xs font-mono text-amber-900 bg-white border border-amber-100 rounded-lg p-3 overflow-auto max-h-64">
+{JSON.stringify(contactRawResponse, null, 2)}
+                </pre>
+              </details>
+            </section>
+          )}
 
           {/* Resultados nuevos */}
           {contactResults && contactResults.length > 0 && (
