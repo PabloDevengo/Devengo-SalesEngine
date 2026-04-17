@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useData } from "../utils/dataLoader";
+import { useLocalStorage } from "../utils/storage";
 import { EMPTY_COMPANY } from "../constants";
 import { getCompany, updateCompany } from "../services/companyService";
 import { getProducts, saveProduct, deleteProduct } from "../services/productsService";
@@ -7,6 +8,12 @@ import { getClients, saveClient, deleteClient } from "../services/clientsService
 import { getCompetitors, saveCompetitor, deleteCompetitor } from "../services/competitorsService";
 import { getPrompts, setPrompt } from "../services/promptsService";
 import { getWebhooks, saveWebhook } from "../services/webhooksService";
+import {
+  ensureSeedLoaded as ensureIndustriesLoaded,
+  saveIndustryDevengo,
+  deleteIndustryDevengo,
+} from "../services/industriesDevengoService";
+import { dedupKey } from "../services/queuesService";
 
 const AppContext = createContext(null);
 
@@ -16,6 +23,7 @@ export function AppProvider({ children }) {
   const [productos,      setProductosState]      = useState([]);
   const [clientes,       setClientesState]       = useState([]);
   const [competidores,   setCompetidoresState]   = useState([]);
+  const [industriesDevengo, setIndustriesDevengoState] = useState([]);
   const [campaignPrompt, setCampaignPromptState] = useState(null);
   const [meetingPrompt,  setMeetingPromptState]  = useState(null);
   const [emailPrompt,    setEmailPromptState]    = useState(null);
@@ -24,6 +32,11 @@ export function AppProvider({ children }) {
     emailgen: '', instantly: '', meetings: '', verification: '',
   });
   const [dbLoading,      setDbLoading]           = useState(true);
+
+  // ── Queues (localStorage) ─────────────────────────────────────────────────
+  const [queues, setQueuesState] = useLocalStorage("queues.v1", {
+    verification: [], prospecting: [], instantly: [],
+  });
 
   // ── Remote defaults (from /public/data/prompts.json) ──────────────────────
   const { data: promptsData } = useData("prompts");
@@ -37,12 +50,14 @@ export function AppProvider({ children }) {
       getCompetitors(),
       getPrompts(),
       getWebhooks(),
+      ensureIndustriesLoaded(),
     ])
-      .then(([co, prods, clients, comps, prompts, hooks]) => {
+      .then(([co, prods, clients, comps, prompts, hooks, industries]) => {
         if (co) setCompanyState(co);
         setProductosState(prods);
         setClientesState(clients);
         setCompetidoresState(comps);
+        setIndustriesDevengoState(industries);
         if (prompts.campaign !== null) setCampaignPromptState(prompts.campaign);
         if (prompts.meeting  !== null) setMeetingPromptState(prompts.meeting);
         if (prompts.email    !== null) setEmailPromptState(prompts.email);
@@ -148,6 +163,33 @@ export function AppProvider({ children }) {
     }
   }
 
+  // ── Industries Devengo setter ──────────────────────────────────────────────
+  const setIndustriesDevengo = useCallback(async (newListOrFn) => {
+    setIndustriesDevengoState(prev => {
+      const newList = typeof newListOrFn === 'function' ? newListOrFn(prev) : newListOrFn;
+      _syncIndustries(prev, newList);
+      return newList;
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function _syncIndustries(oldList, newList) {
+    const oldMap = new Map(oldList.map(i => [i.id, i]));
+    const newMap = new Map(newList.map(i => [i.id, i]));
+    for (const [id] of oldMap) {
+      if (!newMap.has(id)) {
+        try { await deleteIndustryDevengo(id); }
+        catch (e) { console.error("[industries] delete error", e); }
+      }
+    }
+    for (const [, ind] of newMap) {
+      const old = oldMap.get(ind.id);
+      if (!old || JSON.stringify(old) !== JSON.stringify(ind)) {
+        try { await saveIndustryDevengo(ind); }
+        catch (e) { console.error("[industries] save error", e); }
+      }
+    }
+  }
+
   // ── Webhook setter ─────────────────────────────────────────────────────────
   const setWebhook = useCallback(async (key, value) => {
     setWebhooksState(prev => ({ ...prev, [key]: value }));
@@ -174,6 +216,67 @@ export function AppProvider({ children }) {
     catch (e) { console.error("[prompts] email sync error", e); }
   }, []);
 
+  // ── Queue actions ─────────────────────────────────────────────────────────
+  // Devuelve { added, duplicates } para feedback.
+  const addToQueue = useCallback((type, payloadOrPayloads) => {
+    const payloads = Array.isArray(payloadOrPayloads) ? payloadOrPayloads : [payloadOrPayloads];
+    let added = 0, duplicates = 0;
+    setQueuesState(prev => {
+      const existing = prev[type] ?? [];
+      const seen = new Set(existing.map(it => dedupKey(type, it.payload)));
+      const toAdd = [];
+      for (const p of payloads) {
+        if (!p) { duplicates++; continue; }
+        const { __source, ...payload } = p;
+        const k = dedupKey(type, payload);
+        if (!k || seen.has(k)) { duplicates++; continue; }
+        seen.add(k);
+        toAdd.push({
+          id: (crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`),
+          status: "pending",
+          addedAt: Date.now(),
+          launchedAt: null,
+          completedAt: null,
+          error: null,
+          result: null,
+          source: __source ?? "manual",
+          payload,
+        });
+        added++;
+      }
+      return { ...prev, [type]: [...existing, ...toAdd] };
+    });
+    return { added, duplicates };
+  }, [setQueuesState]);
+
+  const removeFromQueue = useCallback((type, id) => {
+    setQueuesState(prev => ({ ...prev, [type]: (prev[type] ?? []).filter(it => it.id !== id) }));
+  }, [setQueuesState]);
+
+  const updateQueueItems = useCallback((type, patchById) => {
+    setQueuesState(prev => ({
+      ...prev,
+      [type]: (prev[type] ?? []).map(it =>
+        patchById[it.id] ? { ...it, ...patchById[it.id] } : it
+      ),
+    }));
+  }, [setQueuesState]);
+
+  // filter: "all" | "done" | "pending" | "error"
+  const clearQueue = useCallback((type, filter = "all") => {
+    setQueuesState(prev => {
+      const items = prev[type] ?? [];
+      let next;
+      if (filter === "all") next = [];
+      else if (filter === "done") next = items.filter(it => it.status !== "done");
+      else if (filter === "error") next = items.filter(it => it.status !== "error");
+      else if (filter === "pending") next = items.filter(it => it.status !== "pending");
+      else if (filter === "processed") next = items.filter(it => it.status !== "done" && it.status !== "error");
+      else next = items;
+      return { ...prev, [type]: next };
+    });
+  }, [setQueuesState]);
+
   // ── Context value ──────────────────────────────────────────────────────────
   return (
     <AppContext.Provider value={{
@@ -184,9 +287,13 @@ export function AppProvider({ children }) {
       productos,      setProductos,
       clientes,       setClientes,
       competidores,   setCompetidores,
+      industriesDevengo, setIndustriesDevengo,
 
       // Webhooks N8N
       webhooks, setWebhook,
+
+      // Queues
+      queues, addToQueue, removeFromQueue, updateQueueItems, clearQueue,
 
       // Prompts (user value, falls back to "" while loading)
       campaignPrompt: campaignPrompt ?? "",

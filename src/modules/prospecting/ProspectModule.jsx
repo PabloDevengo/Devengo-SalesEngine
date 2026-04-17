@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Zap, Copy, Download, ExternalLink, Trash2, Search, Users, Building2 } from "lucide-react";
+import { Zap, Copy, Download, ExternalLink, Trash2, Search, Users, Building2, Inbox, Target, ChevronDown, ChevronRight } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { useData } from "../../utils/dataLoader";
 import {
   saveCompanies, getCompanies, deleteCompany,
   saveContacts,  getContacts,  deleteContact,
 } from "../../services/prospectsService";
+import { groupByCategory } from "../../data/industriesDevengoSeed";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const REVENUES = ["0-1M", "1-10M", "10-50M", "50-100M", "100-500M", "500-1000M", ">1000M"];
@@ -141,14 +142,73 @@ const SURFE_INDUSTRIES = [
   "Wired Telecommunications","Wireless","Women's","Wood Processing","Young Adults",
 ];
 
+// ── DevengoSelector — reusable Industry Devengo picker (outside main) ──────
+function DevengoSelector({ industriesDevengo, selectedIds, onToggle, search, setSearch, emptyLabel }) {
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? industriesDevengo.filter(v =>
+        (v.label || "").toLowerCase().includes(q) ||
+        (v.category || "").toLowerCase().includes(q) ||
+        (v.surfe_industries || []).some(s => s.toLowerCase().includes(q)) ||
+        (v.serper_keywords  || []).some(s => s.toLowerCase().includes(q)))
+    : industriesDevengo;
+  const grouped = groupByCategory(filtered);
+  const selectedSet = new Set(selectedIds);
+  return (
+    <div>
+      <div className="relative mb-2">
+        <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Filtrar verticales (ej. fintech, acquirer, retail)…"
+          className="w-full text-sm border border-gray-200 rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+      </div>
+      <div className="max-h-72 overflow-y-auto border border-gray-100 rounded-lg divide-y divide-gray-50">
+        {Object.keys(grouped).length === 0 && (
+          <div className="px-3 py-6 text-xs text-gray-400 text-center italic">
+            {emptyLabel || "No hay verticales que coincidan."}
+          </div>
+        )}
+        {Object.entries(grouped).map(([cat, items]) => (
+          <div key={cat}>
+            <div className="px-3 py-1.5 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-400">
+              {cat} <span className="text-gray-300 font-normal">· {items.length}</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 px-3 py-2">
+              {items.map(v => {
+                const on = selectedSet.has(v.id);
+                return (
+                  <button key={v.id} type="button" onClick={() => onToggle(v.id)}
+                    title={v.descripcion || v.label}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${on ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-500 border-gray-200 hover:border-indigo-300"}`}>
+                    {v.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── ContactTable — defined OUTSIDE main component to avoid remount bug ─────
-function ContactTable({ contacts, onDelete }) {
+function ContactTable({ contacts, onDelete, onAddToVerify, selectedIds, onToggleId, onToggleAll }) {
   if (!contacts.length) return null;
+  const selectable = !!(selectedIds && onToggleId);
+  const selectableIds = contacts.filter(c => c.email).map(c => c.id).filter(Boolean);
+  const allSelected = selectable && selectableIds.length > 0 && selectableIds.every(id => selectedIds.has(id));
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-gray-50 border-b border-gray-100">
+            {selectable && (
+              <th className="px-4 py-2.5 w-10">
+                <input type="checkbox" checked={allSelected} onChange={() => onToggleAll?.(selectableIds)}
+                  className="w-3.5 h-3.5 accent-indigo-600" />
+              </th>
+            )}
             <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Nombre</th>
             <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Cargo</th>
             <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Email</th>
@@ -160,6 +220,14 @@ function ContactTable({ contacts, onDelete }) {
         <tbody className="divide-y divide-gray-50">
           {contacts.map((c, idx) => (
             <tr key={c.id ?? idx} className="hover:bg-gray-50 transition-colors group">
+              {selectable && (
+                <td className="px-4 py-3">
+                  {c.email && c.id && (
+                    <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => onToggleId(c.id)}
+                      className="w-3.5 h-3.5 accent-indigo-600" />
+                  )}
+                </td>
+              )}
               <td className="px-4 py-3">
                 <p className="font-medium text-gray-800 text-sm">{c.nombre} {c.apellidos}</p>
                 {c.linkedin && (
@@ -182,12 +250,20 @@ function ContactTable({ contacts, onDelete }) {
                 )}
               </td>
               <td className="px-4 py-3">
-                {onDelete && (
-                  <button onClick={() => onDelete(c.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-all p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg">
-                    <Trash2 size={13} />
-                  </button>
-                )}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                  {onAddToVerify && c.email && (
+                    <button onClick={() => onAddToVerify(c)} title="Añadir a cola Verificación"
+                      className="p-1.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
+                      <Inbox size={13} />
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button onClick={() => onDelete(c.id)}
+                      className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
@@ -199,13 +275,16 @@ function ContactTable({ contacts, onDelete }) {
 
 // ── Main component ──────────────────────────────────────────────────────────
 export default function ProspectModule() {
-  const { clientes, webhooks, setWebhook } = useApp();
+  const { clientes, webhooks, setWebhook, addToQueue, industriesDevengo } = useApp();
   const { data: geografias = [] } = useData("geografias");
   const { data: tamanos    = [] } = useData("tamanos");
 
   const [activeTab, setActiveTab] = useState("empresas");
 
   // ── Empresas state ────────────────────────────────────────
+  const [selectedDevengoIds, setSelectedDevengoIds] = useState([]);
+  const [devengoSearch,      setDevengoSearch]      = useState("");
+  const [advancedSurfe,      setAdvancedSurfe]      = useState(false);
   const [industries,     setIndustries]     = useState([]);
   const [industriaInput, setIndustriaInput] = useState("");
   const [showIndustrySuggestions, setShowIndustrySuggestions] = useState(false);
@@ -225,6 +304,10 @@ export default function ProspectModule() {
   const [savedCompanies,  setSavedCompanies]  = useState([]);
 
   // ── Contactos state ───────────────────────────────────────
+  const [contactMode,          setContactMode]          = useState("por-empresas"); // "por-empresas" | "por-industria"
+  const [contactDevengoIds,    setContactDevengoIds]    = useState([]);
+  const [contactDevengoSearch, setContactDevengoSearch] = useState("");
+  const [contactGeos,          setContactGeos]          = useState(["España"]);
   const [contactPersonas,      setContactPersonas]      = useState([]);
   const [contactPersonaInput,  setContactPersonaInput]  = useState("");
   const [preselectedCompanies, setPreselectedCompanies] = useState([]);
@@ -236,6 +319,10 @@ export default function ProspectModule() {
   const [contactResults,       setContactResults]       = useState(null);
   const [savedContacts,        setSavedContacts]        = useState([]);
   const [contactSearch,        setContactSearch]        = useState("");
+  const [selectedResultIds,    setSelectedResultIds]    = useState(new Set());
+  const [selectedSavedIds,     setSelectedSavedIds]     = useState(new Set());
+  const [selectedSavedCompanyIds, setSelectedSavedCompanyIds] = useState(new Set());
+  const [queueToast,           setQueueToast]           = useState(null);
 
   // ── Load from Supabase on mount ───────────────────────────
   useEffect(() => {
@@ -244,8 +331,116 @@ export default function ProspectModule() {
   }, []);
 
   // ══════════════════════════════════════════════════════════
+  // QUEUE helpers — show toast feedback
+  // ══════════════════════════════════════════════════════════
+  const showToast = (msg) => {
+    setQueueToast(msg);
+    setTimeout(() => setQueueToast(null), 2200);
+  };
+  const toggleResultId = (id) => setSelectedResultIds(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
+  });
+  const toggleAllResultIds = (ids) => setSelectedResultIds(prev => {
+    const allIn = ids.length > 0 && ids.every(id => prev.has(id));
+    return allIn ? new Set() : new Set(ids);
+  });
+  const toggleSavedId = (id) => setSelectedSavedIds(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
+  });
+  const toggleAllSavedIds = (ids) => setSelectedSavedIds(prev => {
+    const allIn = ids.length > 0 && ids.every(id => prev.has(id));
+    return allIn ? new Set() : new Set(ids);
+  });
+
+  const contactToVerifyPayload = (c) => ({
+    email: c.email,
+    nombre: c.nombre,
+    apellidos: c.apellidos,
+    empresa: c.company_nombre ?? c.empresa ?? "",
+    dominio: c.company_domain ?? c.dominio ?? "",
+    cargo: c.cargo ?? "",
+    __source: "prospect",
+  });
+
+  const addContactToVerify = (c) => {
+    if (!c?.email) return;
+    const { added, duplicates } = addToQueue("verification", contactToVerifyPayload(c));
+    if (added) showToast(`✓ ${c.email} añadido a cola Verificación`);
+    else if (duplicates) showToast(`${c.email} ya estaba en la cola`);
+  };
+
+  const bulkAddContactsToVerify = (list, clearSel) => {
+    const payloads = list.filter(c => c?.email).map(contactToVerifyPayload);
+    if (payloads.length === 0) return;
+    const { added, duplicates } = addToQueue("verification", payloads);
+    showToast(`✓ ${added} añadidos · ${duplicates} duplicados · Verificación`);
+    clearSel?.();
+  };
+
+  const addCompanyToProspecting = (company) => {
+    if (!company?.domain) return;
+    const { added, duplicates } = addToQueue("prospecting", {
+      nombre: company.name ?? company.nombre ?? "",
+      domain: company.domain,
+      __source: "prospect",
+    });
+    if (added) showToast(`✓ ${company.domain} añadido a cola Búsqueda`);
+    else if (duplicates) showToast(`${company.domain} ya estaba en la cola`);
+  };
+
+  const bulkAddCompaniesToProspecting = () => {
+    const list = selectedDomains.size > 0
+      ? companies.filter(c => selectedDomains.has(c.domain))
+      : companies;
+    const payloads = list.filter(c => c.domain).map(c => ({
+      nombre: c.name ?? c.nombre ?? "",
+      domain: c.domain,
+      __source: "prospect",
+    }));
+    if (payloads.length === 0) return;
+    const { added, duplicates } = addToQueue("prospecting", payloads);
+    showToast(`✓ ${added} añadidos · ${duplicates} duplicados · Búsqueda contactos`);
+  };
+
+  // Saved-companies selection helpers
+  const toggleSavedCompanyId = (id) => setSelectedSavedCompanyIds(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
+  });
+  const toggleAllSavedCompanyIds = () => setSelectedSavedCompanyIds(prev => {
+    const all = savedCompanies.map(c => c.id).filter(Boolean);
+    const allIn = all.length > 0 && all.every(id => prev.has(id));
+    return allIn ? new Set() : new Set(all);
+  });
+
+  const irAContactosDesdeGuardadas = () => {
+    const chosen = selectedSavedCompanyIds.size > 0
+      ? savedCompanies.filter(c => selectedSavedCompanyIds.has(c.id))
+      : savedCompanies;
+    // Normalize to the same shape preselectedCompanies expects
+    setPreselectedCompanies(chosen.map(c => ({ domain: c.domain, name: c.nombre ?? c.name ?? "", nombre: c.nombre ?? "" })));
+    setActiveTab("contactos");
+  };
+
+  const bulkAddSavedCompaniesToProspecting = () => {
+    const chosen = selectedSavedCompanyIds.size > 0
+      ? savedCompanies.filter(c => selectedSavedCompanyIds.has(c.id))
+      : savedCompanies;
+    const payloads = chosen.filter(c => c.domain).map(c => ({
+      nombre: c.nombre ?? c.name ?? "",
+      domain: c.domain,
+      __source: "prospect",
+    }));
+    if (payloads.length === 0) return;
+    const { added, duplicates } = addToQueue("prospecting", payloads);
+    showToast(`✓ ${added} añadidos · ${duplicates} duplicados · Búsqueda contactos`);
+  };
+
+  // ══════════════════════════════════════════════════════════
   // EMPRESAS handlers
   // ══════════════════════════════════════════════════════════
+  const toggleDevengo        = (id) => setSelectedDevengoIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleContactDevengo = (id) => setContactDevengoIds(prev  => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleContactGeo     = (g)  => setContactGeos(gs => gs.includes(g) ? gs.filter(x => x !== g) : [...gs, g]);
   const toggleGeo     = (g) => setGeos(gs => gs.includes(g) ? gs.filter(x => x !== g) : [...gs, g]);
   const toggleTamano  = (t) => setTamanosSel(ts => ts.includes(t) ? ts.filter(x => x !== t) : [...ts, t]);
   const toggleRevenue = (r) => setRevenues(rs => rs.includes(r) ? rs.filter(x => x !== r) : [...rs, r]);
@@ -277,12 +472,23 @@ export default function ProspectModule() {
   };
 
   const buildPayload = () => {
-    const payload = { tipo: "empresa", industries, geografias: geos, tamanos: tamanosSel, revenues, num_resultados: numResults };
+    const selectedDevengo = industriesDevengo.filter(v => selectedDevengoIds.includes(v.id));
+    const surfeFromDevengo = [...new Set(selectedDevengo.flatMap(v => v.surfe_industries || []))];
+    const mergedIndustries = [...new Set([...surfeFromDevengo, ...industries])];
+    const payload = {
+      tipo: "empresa",
+      industries: mergedIndustries,
+      industries_devengo: selectedDevengo.map(v => ({ id: v.id, label: v.label, category: v.category })),
+      geografias: geos,
+      tamanos: tamanosSel,
+      revenues,
+      num_resultados: numResults,
+    };
     if (lookalike) { payload.lookalike = lookalike; payload.lookalike_data = clientes.find(c => c.nombre === lookalike) || null; }
     return payload;
   };
   const payloadJson = JSON.stringify(buildPayload(), null, 2);
-  const canSend = industries.length > 0 || lookalike;
+  const canSend = selectedDevengoIds.length > 0 || industries.length > 0 || !!lookalike;
 
   const enviar = async () => {
     if (!webhookUrl.trim()) { setError("Pega la URL del webhook de N8N."); return; }
@@ -374,6 +580,40 @@ export default function ProspectModule() {
     } finally { setContactLoading(false); }
   };
 
+  const enviarContactosPorIndustria = async () => {
+    if (!contactWebhookUrl.trim()) { setContactError("Pega la URL del webhook de N8N."); return; }
+    if (contactDevengoIds.length === 0) { setContactError("Selecciona al menos una Industry Devengo."); return; }
+    setContactLoading(true); setContactError(null); setContactResults(null);
+    try {
+      const selected = industriesDevengo.filter(v => contactDevengoIds.includes(v.id));
+      const payload = {
+        tipo: "contacto_por_industria",
+        industries_devengo: selected.map(v => ({
+          id: v.id,
+          label: v.label,
+          category: v.category,
+          serper_keywords: v.serper_keywords ?? [],
+        })),
+        personas: contactPersonas,
+        geografias: contactGeos,
+        num_resultados: contactNumResults,
+      };
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 90000);
+      const res = await fetch(contactWebhookUrl.trim(), { method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      clearTimeout(timeout);
+      if (!res.ok) { setContactError(`Error HTTP ${res.status} desde N8N.`); return; }
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data.contacts ?? data.results ?? []);
+      setContactResults(list);
+      if (list.length > 0) {
+        saveContacts(list).then(() => getContacts().then(setSavedContacts)).catch(console.error);
+      }
+    } catch (e) {
+      setContactError(e.name === "AbortError" ? "Timeout: N8N tardó más de 90s." : `Error de red: ${e.message}`);
+    } finally { setContactLoading(false); }
+  };
+
   const handleDeleteContact = async (id) => {
     await deleteContact(id).catch(console.error);
     setSavedContacts(prev => prev.filter(c => c.id !== id));
@@ -432,33 +672,76 @@ export default function ProspectModule() {
             </div>
             <div className="px-6 py-5 space-y-5">
 
-              {/* Industrias */}
+              {/* Verticales (Industry Devengo) */}
               <div>
-                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Industrias</label>
-                <div className="relative">
-                  <input value={industriaInput}
-                    onChange={e => { setIndustriaInput(e.target.value); setShowIndustrySuggestions(true); }}
-                    onFocus={() => setShowIndustrySuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowIndustrySuggestions(false), 150)}
-                    onKeyDown={handleIndustriaKey}
-                    placeholder="Buscar industria…"
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
-                  {showIndustrySuggestions && industrySuggestions.length > 0 && (
-                    <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                      {industrySuggestions.map(ind => (
-                        <button key={ind} onMouseDown={() => addIndustria(ind)}
-                          className="w-full text-left text-sm px-3 py-2 hover:bg-indigo-50 hover:text-indigo-700 transition-colors">{ind}</button>
-                      ))}
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Target size={11} className="text-indigo-500" /> Verticales Devengo
+                  </label>
+                  {selectedDevengoIds.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-indigo-600 font-medium">{selectedDevengoIds.length} seleccionadas</span>
+                      <button onClick={() => setSelectedDevengoIds([])} className="text-xs text-gray-400 hover:text-red-500">Limpiar</button>
                     </div>
                   )}
                 </div>
-                {industries.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {industries.map(ind => (
-                      <span key={ind} className="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-full">
-                        {ind}<button onClick={() => removeIndustria(ind)} className="ml-0.5 text-indigo-400 hover:text-indigo-700 leading-none">×</button>
-                      </span>
-                    ))}
+                {industriesDevengo.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic px-3 py-3 border border-dashed border-gray-200 rounded-lg">
+                    Aún no hay verticales cargadas. Ve a Playbook → Verticales para configurarlas.
+                  </p>
+                ) : (
+                  <DevengoSelector
+                    industriesDevengo={industriesDevengo}
+                    selectedIds={selectedDevengoIds}
+                    onToggle={toggleDevengo}
+                    search={devengoSearch}
+                    setSearch={setDevengoSearch}
+                  />
+                )}
+                {selectedDevengoIds.length > 0 && (
+                  <div className="mt-2 text-xs text-gray-500 bg-indigo-50/60 border border-indigo-100 rounded-lg px-3 py-2">
+                    <span className="font-medium">Surfe recibirá:</span>{" "}
+                    {[...new Set(industriesDevengo.filter(v => selectedDevengoIds.includes(v.id)).flatMap(v => v.surfe_industries || []))].join(", ") || <span className="italic text-gray-400">(ninguna — añade surfe_industries a las verticales)</span>}
+                  </div>
+                )}
+              </div>
+
+              {/* Modo avanzado — industrias Surfe directas */}
+              <div>
+                <button type="button" onClick={() => setAdvancedSurfe(v => !v)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors">
+                  {advancedSurfe ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                  Modo avanzado · añadir industrias Surfe sueltas
+                  {industries.length > 0 && <span className="text-indigo-600">({industries.length})</span>}
+                </button>
+                {advancedSurfe && (
+                  <div className="mt-2">
+                    <div className="relative">
+                      <input value={industriaInput}
+                        onChange={e => { setIndustriaInput(e.target.value); setShowIndustrySuggestions(true); }}
+                        onFocus={() => setShowIndustrySuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowIndustrySuggestions(false), 150)}
+                        onKeyDown={handleIndustriaKey}
+                        placeholder="Buscar industria Surfe…"
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+                      {showIndustrySuggestions && industrySuggestions.length > 0 && (
+                        <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {industrySuggestions.map(ind => (
+                            <button key={ind} onMouseDown={() => addIndustria(ind)}
+                              className="w-full text-left text-sm px-3 py-2 hover:bg-indigo-50 hover:text-indigo-700 transition-colors">{ind}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {industries.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {industries.map(ind => (
+                          <span key={ind} className="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-full">
+                            {ind}<button onClick={() => removeIndustria(ind)} className="ml-0.5 text-indigo-400 hover:text-indigo-700 leading-none">×</button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -577,6 +860,13 @@ export default function ProspectModule() {
                       Buscar contactos{selectedDomains.size > 0 ? ` (${selectedDomains.size})` : ""}
                     </button>
                   )}
+                  {companies.length > 0 && (
+                    <button onClick={bulkAddCompaniesToProspecting}
+                      className="flex items-center gap-1.5 text-xs text-indigo-600 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-lg font-medium hover:bg-indigo-100 transition-all">
+                      <Inbox size={11} />
+                      + Cola búsqueda {selectedDomains.size > 0 ? `(${selectedDomains.size})` : `(${companies.length})`}
+                    </button>
+                  )}
                   <button onClick={downloadJson} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-all">
                     <Download size={11} /> JSON
                   </button>
@@ -643,6 +933,13 @@ export default function ProspectModule() {
                           <td className="px-4 py-3 text-xs text-gray-600 uppercase">{(company.countries ?? []).join(", ") || "—"}</td>
                           <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                              {company.domain && (
+                                <button onClick={() => addCompanyToProspecting(company)}
+                                  title="Añadir a cola Búsqueda contactos"
+                                  className="text-gray-300 hover:text-indigo-600 p-1 rounded hover:bg-indigo-50">
+                                  <Inbox size={11} />
+                                </button>
+                              )}
                               <a href={`https://${company.domain}`} target="_blank" rel="noreferrer"
                                 className="text-gray-300 hover:text-indigo-600 p-1 rounded hover:bg-indigo-50"><ExternalLink size={11} /></a>
                               <button onClick={() => copyDomain(company.domain, idx)}
@@ -667,12 +964,35 @@ export default function ProspectModule() {
                 <div className="flex items-center gap-2">
                   <h2 className="text-sm font-semibold text-gray-800">Empresas guardadas</h2>
                   <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{savedCompanies.length}</span>
+                  {selectedSavedCompanyIds.size > 0 && (
+                    <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
+                      {selectedSavedCompanyIds.size} seleccionadas
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={irAContactosDesdeGuardadas}
+                    className="flex items-center gap-1.5 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-indigo-700 transition-all">
+                    <Users size={11} />
+                    Buscar contactos{selectedSavedCompanyIds.size > 0 ? ` (${selectedSavedCompanyIds.size})` : ` (${savedCompanies.length})`}
+                  </button>
+                  <button onClick={bulkAddSavedCompaniesToProspecting}
+                    className="flex items-center gap-1.5 text-xs text-indigo-600 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-lg font-medium hover:bg-indigo-100 transition-all">
+                    <Inbox size={11} />
+                    + Cola búsqueda {selectedSavedCompanyIds.size > 0 ? `(${selectedSavedCompanyIds.size})` : `(${savedCompanies.length})`}
+                  </button>
                 </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100">
+                      <th className="px-4 py-2.5 w-10">
+                        <input type="checkbox"
+                          checked={savedCompanies.length > 0 && savedCompanies.every(c => selectedSavedCompanyIds.has(c.id))}
+                          onChange={toggleAllSavedCompanyIds}
+                          className="w-3.5 h-3.5 accent-indigo-600" />
+                      </th>
                       <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Empresa</th>
                       <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Revenue</th>
                       <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Empleados</th>
@@ -682,20 +1002,38 @@ export default function ProspectModule() {
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {savedCompanies.map(c => (
-                      <tr key={c.id} className="hover:bg-gray-50 group">
+                      <tr key={c.id}
+                        onClick={() => c.id && toggleSavedCompanyId(c.id)}
+                        className={`hover:bg-gray-50 group cursor-pointer ${selectedSavedCompanyIds.has(c.id) ? "bg-indigo-50/40" : ""}`}>
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          {c.id && (
+                            <input type="checkbox" checked={selectedSavedCompanyIds.has(c.id)}
+                              onChange={() => toggleSavedCompanyId(c.id)}
+                              className="w-3.5 h-3.5 accent-indigo-600" />
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           <p className="font-medium text-gray-800 text-sm">{c.nombre || c.domain}</p>
-                          <a href={`https://${c.domain}`} target="_blank" rel="noreferrer"
+                          <a href={`https://${c.domain}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                             className="text-xs text-gray-400 hover:text-indigo-600 font-mono">{c.domain}</a>
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-600">{c.revenue || "—"}</td>
                         <td className="px-4 py-3 text-xs text-gray-600">{c.employee_count ?? "—"}</td>
                         <td className="px-4 py-3 text-xs text-gray-600 uppercase">{(c.countries ?? []).join(", ") || "—"}</td>
-                        <td className="px-4 py-3">
-                          <button onClick={() => handleDeleteCompany(c.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-all p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg">
-                            <Trash2 size={13} />
-                          </button>
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                            {c.domain && (
+                              <button onClick={() => addCompanyToProspecting({ name: c.nombre, domain: c.domain })}
+                                title="Añadir a cola Búsqueda contactos"
+                                className="p-1.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
+                                <Inbox size={13} />
+                              </button>
+                            )}
+                            <button onClick={() => handleDeleteCompany(c.id)}
+                              className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -713,14 +1051,28 @@ export default function ProspectModule() {
       {activeTab === "contactos" && (
         <>
           <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-              <Users size={15} className="text-indigo-500" />
-              <h2 className="text-sm font-semibold text-gray-800">Búsqueda de contactos</h2>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Users size={15} className="text-indigo-500" />
+                <h2 className="text-sm font-semibold text-gray-800">Búsqueda de contactos</h2>
+              </div>
+              <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+                {[
+                  { id: "por-empresas",  label: "Por empresas",  icon: <Building2 size={11} /> },
+                  { id: "por-industria", label: "Por industria", icon: <Target size={11} /> },
+                ].map(m => (
+                  <button key={m.id} onClick={() => setContactMode(m.id)}
+                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-medium transition-all ${
+                      contactMode === m.id ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                    {m.icon} {m.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="px-6 py-5 space-y-5">
 
-              {/* Empresas pre-cargadas */}
-              {preselectedCompanies.length > 0 && (
+              {/* Empresas pre-cargadas (solo modo "por-empresas") */}
+              {contactMode === "por-empresas" && preselectedCompanies.length > 0 && (
                 <div>
                   <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">
                     Empresas objetivo <span className="text-indigo-400 normal-case font-normal">· desde búsqueda anterior</span>
@@ -736,6 +1088,58 @@ export default function ProspectModule() {
                   <button onClick={() => setPreselectedCompanies([])} className="text-xs text-gray-400 hover:text-red-500 mt-1.5 transition-all">
                     Limpiar empresas
                   </button>
+                </div>
+              )}
+
+              {/* Verticales Devengo (solo modo "por-industria") */}
+              {contactMode === "por-industria" && (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Target size={11} className="text-indigo-500" /> Verticales Devengo
+                    </label>
+                    {contactDevengoIds.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-indigo-600 font-medium">{contactDevengoIds.length} seleccionadas</span>
+                        <button onClick={() => setContactDevengoIds([])} className="text-xs text-gray-400 hover:text-red-500">Limpiar</button>
+                      </div>
+                    )}
+                  </div>
+                  {industriesDevengo.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic px-3 py-3 border border-dashed border-gray-200 rounded-lg">
+                      Aún no hay verticales cargadas. Ve a Playbook → Verticales.
+                    </p>
+                  ) : (
+                    <DevengoSelector
+                      industriesDevengo={industriesDevengo}
+                      selectedIds={contactDevengoIds}
+                      onToggle={toggleContactDevengo}
+                      search={contactDevengoSearch}
+                      setSearch={setContactDevengoSearch}
+                    />
+                  )}
+                  {contactDevengoIds.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-500 bg-emerald-50/60 border border-emerald-100 rounded-lg px-3 py-2">
+                      <span className="font-medium">Serper buscará con keywords:</span>{" "}
+                      {[...new Set(industriesDevengo.filter(v => contactDevengoIds.includes(v.id)).flatMap(v => v.serper_keywords || []))].slice(0, 12).join(", ") || <span className="italic text-gray-400">(ninguna — añade serper_keywords a las verticales)</span>}
+                      {[...new Set(industriesDevengo.filter(v => contactDevengoIds.includes(v.id)).flatMap(v => v.serper_keywords || []))].length > 12 && " …"}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Geografía (solo modo "por-industria") */}
+              {contactMode === "por-industria" && (
+                <div>
+                  <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Geografía</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {geografias.map(geo => (
+                      <button key={geo} onClick={() => toggleContactGeo(geo)}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-all ${contactGeos.includes(geo) ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-500 border-gray-200 hover:border-indigo-300"}`}>
+                        {geo}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -778,14 +1182,18 @@ export default function ProspectModule() {
                 </div>
               </div>
 
-              {/* Webhook */}
-              <button onClick={enviarContactos} disabled={contactLoading}
+              {/* Launch button (per mode) */}
+              <button
+                onClick={contactMode === "por-industria" ? enviarContactosPorIndustria : enviarContactos}
+                disabled={contactLoading}
                 className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   contactLoading ? "bg-indigo-100 text-indigo-400 cursor-not-allowed"
                   : "bg-indigo-600 text-white hover:bg-indigo-700"}`}>
                 {contactLoading
                   ? <><span className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />Buscando contactos...</>
-                  : <><Users size={13} />Buscar contactos</>}
+                  : contactMode === "por-industria"
+                    ? <><Target size={13} />Buscar por industria (Serper){contactDevengoIds.length > 0 ? ` · ${contactDevengoIds.length}` : ""}</>
+                    : <><Users size={13} />Buscar contactos{preselectedCompanies.length > 0 ? ` · ${preselectedCompanies.length} empresas` : ""}</>}
               </button>
             </div>
           </section>
@@ -801,13 +1209,40 @@ export default function ProspectModule() {
                   <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
                     {contactResults.length} encontrados · guardados automáticamente
                   </span>
+                  {selectedResultIds.size > 0 && (
+                    <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
+                      {selectedResultIds.size} seleccionados
+                    </span>
+                  )}
                 </div>
-                <button onClick={() => downloadContactsCsv(contactResults)}
-                  className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-all">
-                  <Download size={11} /> CSV
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const list = selectedResultIds.size > 0
+                        ? contactResults.filter(c => selectedResultIds.has(c.id))
+                        : contactResults;
+                      bulkAddContactsToVerify(list, () => setSelectedResultIds(new Set()));
+                    }}
+                    className="flex items-center gap-1.5 text-xs text-indigo-600 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-lg font-medium hover:bg-indigo-100 transition-all">
+                    <Inbox size={11} />
+                    + Cola verificación {selectedResultIds.size > 0
+                      ? `(${selectedResultIds.size})`
+                      : `(${contactResults.filter(c => c.email).length})`}
+                  </button>
+                  <button onClick={() => downloadContactsCsv(contactResults)}
+                    className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-all">
+                    <Download size={11} /> CSV
+                  </button>
+                </div>
               </div>
-              <ContactTable contacts={contactResults} onDelete={null} />
+              <ContactTable
+                contacts={contactResults}
+                onDelete={null}
+                onAddToVerify={addContactToVerify}
+                selectedIds={selectedResultIds}
+                onToggleId={toggleResultId}
+                onToggleAll={toggleAllResultIds}
+              />
             </section>
           )}
 
@@ -817,13 +1252,35 @@ export default function ProspectModule() {
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold text-gray-800">Historial de contactos</h2>
                 <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{filteredContacts.length}</span>
+                {selectedSavedIds.size > 0 && (
+                  <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
+                    {selectedSavedIds.size} seleccionados
+                  </span>
+                )}
               </div>
-              {savedContacts.length > 0 && (
-                <button onClick={() => downloadContactsCsv(filteredContacts)}
-                  className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-all">
-                  <Download size={11} /> CSV
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {savedContacts.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const list = selectedSavedIds.size > 0
+                        ? filteredContacts.filter(c => selectedSavedIds.has(c.id))
+                        : filteredContacts;
+                      bulkAddContactsToVerify(list, () => setSelectedSavedIds(new Set()));
+                    }}
+                    className="flex items-center gap-1.5 text-xs text-indigo-600 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-lg font-medium hover:bg-indigo-100 transition-all">
+                    <Inbox size={11} />
+                    + Cola verificación {selectedSavedIds.size > 0
+                      ? `(${selectedSavedIds.size})`
+                      : `(${filteredContacts.filter(c => c.email).length})`}
+                  </button>
+                )}
+                {savedContacts.length > 0 && (
+                  <button onClick={() => downloadContactsCsv(filteredContacts)}
+                    className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-all">
+                    <Download size={11} /> CSV
+                  </button>
+                )}
+              </div>
             </div>
 
             {savedContacts.length === 0 ? (
@@ -846,12 +1303,25 @@ export default function ProspectModule() {
                 </div>
                 {filteredContacts.length === 0
                   ? <div className="px-6 py-8 text-center"><p className="text-sm text-gray-400">No hay contactos que coincidan.</p></div>
-                  : <ContactTable contacts={filteredContacts} onDelete={handleDeleteContact} />
+                  : <ContactTable
+                      contacts={filteredContacts}
+                      onDelete={handleDeleteContact}
+                      onAddToVerify={addContactToVerify}
+                      selectedIds={selectedSavedIds}
+                      onToggleId={toggleSavedId}
+                      onToggleAll={toggleAllSavedIds}
+                    />
                 }
               </>
             )}
           </section>
         </>
+      )}
+
+      {queueToast && (
+        <div className="fixed bottom-4 right-4 bg-indigo-600 text-white text-sm font-medium px-4 py-2.5 rounded-lg shadow-lg z-50">
+          {queueToast}
+        </div>
       )}
     </div>
   );

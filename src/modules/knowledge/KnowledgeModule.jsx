@@ -11,6 +11,7 @@ import Input from "../../components/ui/Input";
 import Val from "../../components/ui/Val";
 import Empty from "../../components/ui/Empty";
 import DiscoverModal from "../../components/DiscoverModal";
+import { groupByCategory } from "../../data/industriesDevengoSeed";
 
 // ── Constants ─────────────────────────────────────────────
 const KEY_PERSONAS = ["CFO", "COO", "Head of Treasury", "Head of Operations", "Compliance Director", "CEO"];
@@ -18,6 +19,34 @@ const KEY_PERSONAS = ["CFO", "COO", "Head of Treasury", "Head of Operations", "C
 const EMPTY_PRODUCT = { nombre: "", descripcion: "", kvp: "", subproductos: [], isMain: false, keyPersonas: [] };
 const EMPTY_CLIENTE = { nombre: "", web: "", industria: "", descripcion: "", productos: [], visibilidad: "publico", testimonial: null, comentario: "" };
 const EMPTY_COMP    = { nombre: "", web: "", producto: "", ventajas: "", desventajas: "", geografias: [] };
+
+const VERTICAL_CATEGORIES = [
+  "Financial Services",
+  "Retail",
+  "Marketplace",
+  "Logistics",
+  "Transportation",
+  "Travel",
+  "Real Estate",
+  "HR / Ops",
+  "Education",
+  "Utilities",
+  "Telecom",
+  "Software",
+  "Professional Services",
+  "Gaming",
+  "Sports",
+  "Other",
+];
+const EMPTY_VERTICAL = { id: "", label: "", category: "Other", descripcion: "", surfe_industries: [], serper_keywords: [] };
+
+function slugify(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+    .slice(0, 64);
+}
 
 // ── Section wrapper ───────────────────────────────────────
 function Section({ icon, title, count, action, children }) {
@@ -148,6 +177,79 @@ function CompFormFields({ draft, setDraft, productos, geografias }) {
   );
 }
 
+// ── Chip input (defined OUTSIDE to avoid remount on each keystroke) ──
+function ChipInput({ value, onChange, placeholder, color = "indigo" }) {
+  const [input, setInput] = useState("");
+  const list = value || [];
+  const palette = {
+    indigo:  { chip: "bg-indigo-50 text-indigo-700 border-indigo-100",   x: "hover:text-indigo-900" },
+    violet:  { chip: "bg-violet-50 text-violet-700 border-violet-100",   x: "hover:text-violet-900" },
+    emerald: { chip: "bg-emerald-50 text-emerald-700 border-emerald-100", x: "hover:text-emerald-900" },
+  }[color] || { chip: "bg-gray-50 text-gray-700 border-gray-200", x: "hover:text-gray-900" };
+  const add = (raw) => {
+    const parts = String(raw || "")
+      .split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+    if (parts.length === 0) return;
+    const next = [...list];
+    for (const p of parts) if (!next.includes(p)) next.push(p);
+    onChange(next);
+    setInput("");
+  };
+  return (
+    <div>
+      <div className="flex flex-wrap gap-1.5 mb-1.5">
+        {list.map(item => (
+          <span key={item} className={`inline-flex items-center gap-1 text-xs border ${palette.chip} px-2 py-0.5 rounded-full`}>
+            {item}
+            <button type="button" onClick={() => onChange(list.filter(x => x !== item))}
+              className={`text-current opacity-50 ${palette.x} transition-colors`}><X size={9} /></button>
+          </span>
+        ))}
+        {list.length === 0 && <span className="text-xs text-gray-300 italic">Sin valores aún</span>}
+      </div>
+      <input value={input} onChange={e => setInput(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(input); } }}
+        onBlur={() => add(input)}
+        placeholder={placeholder}
+        className="w-full text-xs border border-indigo-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white" />
+    </div>
+  );
+}
+
+// ── Vertical (Industry Devengo) form (OUTSIDE KnowledgeModule) ────
+function VerticalFormFields({ draft, setDraft, isEdit }) {
+  return (
+    <div className="space-y-2.5">
+      <FormInput autoFocus={!isEdit} value={draft.label}
+        onChange={v => setDraft(d => ({ ...d, label: v }))} placeholder="Nombre de la vertical (ej. Fintech - Acquirer)" />
+      <div>
+        <p className="text-xs text-indigo-500 font-medium mb-1.5">Categoría</p>
+        <div className="flex flex-wrap gap-1.5">
+          {VERTICAL_CATEGORIES.map(cat => (
+            <button key={cat} type="button" onClick={() => setDraft(d => ({ ...d, category: cat }))}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-all ${draft.category === cat ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-500 border-gray-200 hover:border-indigo-300"}`}>
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+      <FormTextarea value={draft.descripcion || ""}
+        onChange={v => setDraft(d => ({ ...d, descripcion: v }))}
+        placeholder="Descripción breve (para recordar a qué se refiere)…" />
+      <div>
+        <p className="text-xs text-indigo-500 font-medium mb-1.5">Surfe industries (flujo Empresas)</p>
+        <ChipInput value={draft.surfe_industries} onChange={v => setDraft(d => ({ ...d, surfe_industries: v }))}
+          placeholder="Añade una industry de Surfe + Enter (FinTech, Payments, …)" color="violet" />
+      </div>
+      <div>
+        <p className="text-xs text-indigo-500 font-medium mb-1.5">Serper keywords (flujo Contactos por industria)</p>
+        <ChipInput value={draft.serper_keywords} onChange={v => setDraft(d => ({ ...d, serper_keywords: v }))}
+          placeholder="Añade keyword + Enter (merchant acquirer, card acquiring, …)" color="emerald" />
+      </div>
+    </div>
+  );
+}
+
 // ── Testimonial inline editor ─────────────────────────────
 function TestimonialEditor({ initial, onSave, onCancel }) {
   const [t, setT] = useState(initial || { nombre: "", posicion: "", comentario: "" });
@@ -173,7 +275,7 @@ function TestimonialEditor({ initial, onSave, onCancel }) {
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════
 export default function KnowledgeModule() {
-  const { company, setCompany, productos, setProductos, clientes, setClientes, competidores, setCompetidores } = useApp();
+  const { company, setCompany, productos, setProductos, clientes, setClientes, competidores, setCompetidores, industriesDevengo, setIndustriesDevengo } = useApp();
   const { data: geografias = [] } = useData("geografias");
 
   // ── Company ───────────────────────────────────────────────
@@ -247,6 +349,28 @@ export default function KnowledgeModule() {
       geografias:  company.countries ?? [],
     }]);
   }
+
+  // ── Verticales (Industry Devengo) ─────────────────────────
+  const [addingVertical,    setAddingVertical]    = useState(false);
+  const [newVertical,       setNewVertical]       = useState(EMPTY_VERTICAL);
+  const [editingVerticalId, setEditingVerticalId] = useState(null);
+  const [editVerticalDraft, setEditVerticalDraft] = useState(null);
+  const [collapsedCats,     setCollapsedCats]     = useState({});
+
+  const commitVertical = () => {
+    const label = (newVertical.label || "").trim();
+    if (!label) return;
+    let id = slugify(label);
+    if (!id) id = `vertical-${Date.now()}`;
+    if (industriesDevengo.some(v => v.id === id)) id = `${id}-${Date.now().toString(36)}`;
+    setIndustriesDevengo(vs => [...vs, { ...newVertical, id, label }]);
+    setNewVertical(EMPTY_VERTICAL);
+    setAddingVertical(false);
+  };
+  const removeVertical     = (id) => setIndustriesDevengo(vs => vs.filter(v => v.id !== id));
+  const startEditVertical  = (v)  => { setEditingVerticalId(v.id); setEditVerticalDraft({ ...v, surfe_industries: [...(v.surfe_industries || [])], serper_keywords: [...(v.serper_keywords || [])] }); };
+  const saveVertical       = ()   => { setIndustriesDevengo(vs => vs.map(v => v.id === editingVerticalId ? { ...editVerticalDraft } : v)); setEditingVerticalId(null); setEditVerticalDraft(null); };
+  const cancelEditVertical = ()   => { setEditingVerticalId(null); setEditVerticalDraft(null); };
 
   // ── Competitors ───────────────────────────────────────────
   const [addingComp,    setAddingComp]    = useState(false);
@@ -571,6 +695,90 @@ export default function KnowledgeModule() {
               )}
             </div>
           ))}
+        </div>
+      </Section>
+
+      {/* ══════════════════════════════════════════════════
+          VERTICALES (Industry Devengo)
+      ══════════════════════════════════════════════════ */}
+      <Section
+        icon={<span style={{ fontSize: 15 }}>🎯</span>}
+        title="Verticales · Industry Devengo"
+        count={industriesDevengo.length}
+        action={<button onClick={() => setAddingVertical(true)} className="flex items-center gap-1.5 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition-all"><Plus size={11} /> Añadir vertical</button>}>
+
+        {addingVertical && (
+          <div className="px-6 py-4 bg-indigo-50 border-b border-indigo-100 space-y-2.5">
+            <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wider">Nueva vertical</p>
+            <VerticalFormFields draft={newVertical} setDraft={setNewVertical} isEdit={false} />
+            <div className="flex gap-2 pt-1">
+              <button onClick={commitVertical} className="flex items-center gap-1.5 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition-all"><Check size={11} /> Crear</button>
+              <button onClick={() => { setAddingVertical(false); setNewVertical(EMPTY_VERTICAL); }} className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all">Cancelar</button>
+            </div>
+          </div>
+        )}
+
+        {industriesDevengo.length === 0 && !addingVertical && (
+          <div className="px-6 py-12 text-center">
+            <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3 text-xl">🎯</div>
+            <p className="text-sm text-gray-400">No hay verticales. Se cargarán las 55 iniciales al conectar Supabase.</p>
+          </div>
+        )}
+
+        <div className="divide-y divide-gray-100">
+          {Object.entries(groupByCategory(industriesDevengo)).map(([cat, items]) => {
+            const isCollapsed = collapsedCats[cat];
+            return (
+              <div key={cat}>
+                <button onClick={() => setCollapsedCats(c => ({ ...c, [cat]: !c[cat] }))}
+                  className="w-full px-6 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center gap-2 text-left">
+                  {isCollapsed ? <ChevronRight size={12} className="text-gray-400" /> : <ChevronDown size={12} className="text-gray-400" />}
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">{cat}</span>
+                  <span className="text-xs text-gray-400">· {items.length}</span>
+                </button>
+                {!isCollapsed && items.map(vertical => (
+                  <div key={vertical.id}>
+                    {editingVerticalId === vertical.id ? (
+                      <div className="px-6 py-4 bg-indigo-50 space-y-2.5">
+                        <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wider">Editando: {vertical.label}</p>
+                        <VerticalFormFields draft={editVerticalDraft} setDraft={setEditVerticalDraft} isEdit={true} />
+                        <div className="flex gap-2 pt-1">
+                          <button onClick={saveVertical} className="flex items-center gap-1.5 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition-all"><Save size={11} /> Guardar</button>
+                          <button onClick={cancelEditVertical} className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all">Cancelar</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="px-6 py-3 flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800">{vertical.label}</p>
+                          {vertical.descripcion && <p className="text-xs text-gray-500 mt-0.5">{vertical.descripcion}</p>}
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {(vertical.surfe_industries || []).map(i => (
+                              <span key={`s-${i}`} className="inline-flex items-center gap-1 text-xs bg-violet-50 text-violet-700 border border-violet-100 px-2 py-0.5 rounded-full" title="Surfe industry">
+                                <Layers size={9} />{i}
+                              </span>
+                            ))}
+                            {(vertical.serper_keywords || []).map(k => (
+                              <span key={`k-${k}`} className="inline-flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full" title="Serper keyword">
+                                <Search size={9} />{k}
+                              </span>
+                            ))}
+                            {(vertical.surfe_industries || []).length === 0 && (vertical.serper_keywords || []).length === 0 && (
+                              <span className="text-xs text-gray-300 italic">Sin mappings — añade al menos uno</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                          <button onClick={() => startEditVertical(vertical)} className="text-gray-200 hover:text-indigo-500 transition-colors px-1"><Edit3 size={13} /></button>
+                          <button onClick={() => removeVertical(vertical.id)} className="text-gray-200 hover:text-red-400 transition-colors px-1"><Trash2 size={13} /></button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
         </div>
       </Section>
 

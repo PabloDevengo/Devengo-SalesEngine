@@ -9,6 +9,7 @@ import EmailModule      from "./modules/email/EmailModule";
 import CampaignModule   from "./modules/campaigns/CampaignModule";
 import ProspectModule   from "./modules/prospecting/ProspectModule";
 import MeetingsModule from "./modules/meetings/MeetingsModule";
+import ColasModule    from "./modules/queues/ColasModule";
 import ConfigModule   from "./modules/config/ConfigModule";
 
 function AppContent({ onLogout }) {
@@ -26,6 +27,7 @@ function AppContent({ onLogout }) {
           {activeModule === "campaigns" && <CampaignModule />}
           {activeModule === "prospect"  && <ProspectModule />}
           {activeModule === "meetings" && <MeetingsModule />}
+          {activeModule === "colas"    && <ColasModule />}
           {activeModule === "config"   && <ConfigModule />}
         </div>
       </main>

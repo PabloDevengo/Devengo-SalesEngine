@@ -8,6 +8,7 @@ export const NAV_ITEMS = [
   { id: "prospect",  label: "Prospección",     icon: "🔍" },
   { id: "campaigns", label: "Email Generator",   icon: "✍️" },
   { id: "meetings", label: "Reuniones",      icon: "🎙️" },
+  { id: "colas",    label: "Colas",          icon: "📥" },
   { id: "config",   label: "Configuración", icon: "⚙️" },
 ];
 
@@ -17,6 +18,7 @@ export const MODULE_TITLES = {
   prospect:  { title: "Prospección",     sub: "Gestiona y enriquece tu pipeline de prospectos" },
   campaigns: { title: "Email Generator",  sub: "Genera emails personalizados con IA y súbelos a Instantly" },
   meetings:     { title: "Reuniones",     sub: "Transcripciones e inteligencia de reuniones" },
+  colas:     { title: "Colas de trabajo", sub: "Acumula items y lanza workflows de N8N por lotes" },
   config: { title: "Configuración", sub: "Ajustes y prompts de la aplicación" },
 };
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Upload, Zap, Copy, Download, X, CheckCircle, AlertTriangle, XCircle, HelpCircle } from "lucide-react";
+import { Upload, Zap, Copy, Download, X, CheckCircle, AlertTriangle, XCircle, HelpCircle, Inbox } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 
 // ── Status config ─────────────────────────────────────────
@@ -42,8 +42,17 @@ function StatusBadge({ status }) {
 
 // ═════════════════════════════════════════════════════════
 export default function VerificationModule() {
-  const { webhooks, setWebhook } = useApp();
+  const { webhooks, setWebhook, addToQueue } = useApp();
   const fileRef = useRef();
+  const [queueToast, setQueueToast] = useState(null);
+  const showToast = (msg) => { setQueueToast(msg); setTimeout(() => setQueueToast(null), 2200); };
+
+  const addEmailsToQueue = () => {
+    if (emails.length === 0) return;
+    const payloads = emails.map(email => ({ email, __source: "manual" }));
+    const { added, duplicates } = addToQueue("verification", payloads);
+    showToast(`✓ ${added} añadidos · ${duplicates} duplicados · Verificación`);
+  };
 
   // ── Input mode ──
   const [inputTab,    setInputTab]    = useState("paste"); // "paste" | "csv"
@@ -351,15 +360,23 @@ export default function VerificationModule() {
               </div>
             )}
 
-            <button onClick={verificar} disabled={!canVerify || verifying}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                !canVerify || verifying
-                  ? "bg-indigo-100 text-indigo-400 cursor-not-allowed"
-                  : "bg-indigo-600 text-white hover:bg-indigo-700"}`}>
-              {verifying
-                ? <><span className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />Verificando {emails.length} emails...</>
-                : <><Zap size={13} />Verificar {emails.length} emails</>}
-            </button>
+            <div className="flex gap-2">
+              <button onClick={verificar} disabled={!canVerify || verifying}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  !canVerify || verifying
+                    ? "bg-indigo-100 text-indigo-400 cursor-not-allowed"
+                    : "bg-indigo-600 text-white hover:bg-indigo-700"}`}>
+                {verifying
+                  ? <><span className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />Verificando {emails.length} emails...</>
+                  : <><Zap size={13} />Verificar {emails.length} emails</>}
+              </button>
+              <button onClick={addEmailsToQueue} disabled={verifying || emails.length === 0}
+                title="Añadir estos emails a la cola de Verificación para lanzarlos más tarde"
+                className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                <Inbox size={13} />
+                + Cola
+              </button>
+            </div>
           </div>
         </section>
       )}
@@ -435,6 +452,12 @@ export default function VerificationModule() {
             </div>
           </section>
         </>
+      )}
+
+      {queueToast && (
+        <div className="fixed bottom-4 right-4 bg-indigo-600 text-white text-sm font-medium px-4 py-2.5 rounded-lg shadow-lg z-50">
+          {queueToast}
+        </div>
       )}
     </div>
   );
