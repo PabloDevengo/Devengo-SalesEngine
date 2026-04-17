@@ -199,21 +199,45 @@ function unwrapContactList(data, depth = 0) {
   return [];
 }
 
+// Limpia placeholders que a veces devuelve el LLM cuando no tiene valor real
+// (literalmente copia el texto del JSON schema en lugar de devolver null).
+const LLM_PLACEHOLDERS = new Set([
+  "string", "string o null", "url o null", "email o null",
+  "null", "undefined", "n/a", "na", "none", "-", "—",
+]);
+function clean(v) {
+  if (v == null) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (LLM_PLACEHOLDERS.has(s.toLowerCase())) return null;
+  return s;
+}
+
 // Normaliza un contacto a la forma interna (compatible con ambos flujos).
 function normalizeContact(c, idx = 0) {
   if (!c || typeof c !== "object") return null;
+  const nombre         = clean(c.nombre         ?? c.name);
+  const apellidos      = clean(c.apellidos      ?? c.last_name);
+  const cargo          = clean(c.cargo          ?? c.title ?? c.position);
+  const email          = clean(c.email);
+  const telefono       = clean(c.telefono       ?? c.phone);
+  const linkedin       = clean(c.linkedin);
+  const company_nombre = clean(c.company_nombre ?? c.empresa ?? c.company);
+  const company_domain = clean(c.company_domain ?? c.dominio ?? c.domain);
+  const fuente         = clean(c.fuente         ?? c.source  ?? c.source_url);
+  // Descartar filas sin ningún identificador útil (basura de placeholder puro).
+  if (!nombre && !apellidos && !email && !linkedin) return null;
   return {
-    id:             c.id ?? null,
-    nombre:         c.nombre         ?? c.name        ?? "",
-    apellidos:      c.apellidos      ?? c.last_name   ?? "",
-    cargo:          c.cargo          ?? c.title       ?? c.position ?? "",
-    email:          c.email          ?? null,
-    telefono:       c.telefono       ?? c.phone       ?? null,
-    linkedin:       c.linkedin       ?? null,
-    company_nombre: c.company_nombre ?? c.empresa     ?? c.company  ?? "",
-    company_domain: c.company_domain ?? c.dominio     ?? c.domain   ?? "",
-    fuente:         c.fuente         ?? c.source      ?? c.source_url ?? null,
-    // id temporal para selección bulk cuando el webhook no devuelve uno.
+    id: c.id ?? null,
+    nombre:         nombre         ?? "",
+    apellidos:      apellidos      ?? "",
+    cargo:          cargo          ?? "",
+    email,
+    telefono,
+    linkedin,
+    company_nombre: company_nombre ?? "",
+    company_domain: company_domain ?? "",
+    fuente,
     _tmpId: `tmp-${Date.now()}-${idx}`,
   };
 }
