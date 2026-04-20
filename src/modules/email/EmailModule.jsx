@@ -143,12 +143,13 @@ export default function EmailModule() {
 
   // ── Generator state ──────────────────────────────────────
   const [nombre,    setNombre]    = useState("");
+  const [nombre2,   setNombre2]   = useState("");
   const [apellido1, setApellido1] = useState("");
   const [apellido2, setApellido2] = useState("");
   const [dominio,   setDominio]   = useState("");
   const [copied,    setCopied]    = useState(null);
 
-  const combos = buildCombinations(nombre, apellido1, apellido2, dominio);
+  const combos = buildCombinations(nombre, apellido1, apellido2, dominio, { nombre2 });
 
   const copyAll = () => {
     navigator.clipboard.writeText(combos.map(c => c.email).join("\n")).catch(() => {});
@@ -302,7 +303,8 @@ export default function EmailModule() {
             </div>
             <div className="px-6 py-5 grid grid-cols-2 gap-x-6 gap-y-4">
               {[
-                { label: "Nombre",           val: nombre,    set: setNombre,    ph: "ej. María"       },
+                { label: "Nombre",           val: nombre,    set: setNombre,    ph: "ej. José"        },
+                { label: "Segundo nombre",   val: nombre2,   set: setNombre2,   ph: "ej. Antonio", opt: true },
                 { label: "Primer apellido",  val: apellido1, set: setApellido1, ph: "ej. García"      },
                 { label: "Segundo apellido", val: apellido2, set: setApellido2, ph: "ej. López", opt: true },
                 { label: "Dominio",          val: dominio,   set: setDominio,   ph: "ej. empresa.com" },
