@@ -117,14 +117,45 @@ export default function ConfigModule() {
 
   const [activeTab, setActiveTab] = useState("campaigns");
 
-  const WEBHOOKS = [
-    { key: "emailgen",     label: "📣 Email Generator",               description: "Genera secuencias de emails desde el módulo Campañas." },
-    { key: "instantly",    label: "📤 Instantly — subida de campañas", description: "Sube los emails generados a Instantly para su envío." },
-    { key: "meetings",     label: "🎙️ Reuniones",                      description: "Analiza transcripciones en el módulo de Reuniones." },
-    { key: "verification", label: "✉️ Verificación de emails",         description: "Verifica entregabilidad de listas de emails." },
-    { key: "prospect",     label: "🏢 Prospección · Empresas",         description: "Busca empresas prospecto según filtros." },
-    { key: "contacts",     label: "👤 Prospección · Contactos",        description: "Busca contactos dentro de las empresas prospecto." },
-    { key: "lookalike",    label: "🔍 Búsqueda lookalike (Playbook)",  description: "Busca empresas similares a clientes o competidores." },
+  // Webhooks agrupados por proveedor de datos / servicio externo.
+  const WEBHOOK_GROUPS = [
+    {
+      provider: "Surfe",
+      subtitle: "Prospección por industrias (taxonomía LinkedIn).",
+      items: [
+        { key: "prospect", label: "🏢 Prospección · Empresas", description: "Busca empresas por industria + filtros secundarios (geografía, tamaño, revenue)." },
+      ],
+    },
+    {
+      provider: "Serper",
+      subtitle: "Búsquedas Google + filtrado con ChatGPT para nichos y lookalike.",
+      items: [
+        { key: "contacts",  label: "👤 Prospección · Contactos", description: "Busca contactos dentro de las empresas prospecto." },
+        { key: "lookalike", label: "🔍 Búsqueda lookalike",      description: "Empresas similares a un cliente/competidor de referencia. Usado en Prospección · Empresas (cuando hay lookalike) y en Playbook." },
+      ],
+    },
+    {
+      provider: "Clearout",
+      subtitle: "Verificación de entregabilidad de emails.",
+      items: [
+        { key: "verification", label: "✉️ Verificación de emails", description: "Verifica listas de emails (valid / risky / invalid)." },
+      ],
+    },
+    {
+      provider: "Instantly",
+      subtitle: "Envío de secuencias de email.",
+      items: [
+        { key: "instantly", label: "📤 Subida de campañas", description: "Sube los emails generados a Instantly para su envío." },
+      ],
+    },
+    {
+      provider: "N8N + ChatGPT",
+      subtitle: "Flujos que componen / analizan contenido con LLM.",
+      items: [
+        { key: "emailgen", label: "📣 Email Generator",  description: "Genera secuencias de emails desde el módulo Campañas." },
+        { key: "meetings", label: "🎙️ Reuniones",        description: "Analiza transcripciones en el módulo de Reuniones." },
+      ],
+    },
   ];
 
   return (
@@ -175,24 +206,32 @@ export default function ConfigModule() {
       )}
 
       {activeTab === "integraciones" && (
-        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-800">Webhooks N8N</h3>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Las URLs se comparten con todo el equipo. Los cambios se guardan al salir del campo.
+        <div className="space-y-4">
+          <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3">
+            <p className="text-xs text-indigo-900/80">
+              Webhooks N8N agrupados por proveedor. Las URLs se comparten con todo el equipo y se guardan al salir del campo.
             </p>
           </div>
-          <div className="px-6">
-            {WEBHOOKS.map(({ key, label, description }) => (
-              <WebhookRow
-                key={key}
-                label={label}
-                description={description}
-                value={webhooks[key] ?? ""}
-                onSave={val => setWebhook(key, val)}
-              />
-            ))}
-          </div>
+
+          {WEBHOOK_GROUPS.map(({ provider, subtitle, items }) => (
+            <div key={provider} className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+              <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/50">
+                <h3 className="text-sm font-semibold text-gray-800">{provider}</h3>
+                {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+              </div>
+              <div className="px-6">
+                {items.map(({ key, label, description }) => (
+                  <WebhookRow
+                    key={key}
+                    label={label}
+                    description={description}
+                    value={webhooks[key] ?? ""}
+                    onSave={val => setWebhook(key, val)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

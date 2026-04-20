@@ -588,11 +588,48 @@ export default function ProspectModule() {
     setSelectedDomains(selectedDomains.size === all.length ? new Set() : new Set(all));
   };
 
+  // ── Auto-routing: lookalike activo → webhook Serper+LLM; si no → Surfe ────
+  const isLookalike = !!lookalike;
+  const activeWebhookUrl = isLookalike
+    ? (webhooks.lookalike || "").trim()
+    : (webhookUrl || "").trim();
+  const activeWebhookLabel = isLookalike ? "Serper · lookalike" : "Surfe · prospect";
+
   const buildPayload = () => {
     const selectedDevengo = industriesDevengo.filter(v => selectedDevengoIds.includes(v.id));
     const surfeFromDevengo = [...new Set(selectedDevengo.flatMap(v => v.surfe_industries || []))];
     const mergedIndustries = [...new Set([...surfeFromDevengo, ...industries])];
-    const payload = {
+
+    if (isLookalike) {
+      // Payload Lookalike: cliente de referencia + filtros secundarios para post-filtrado.
+      const ref = clientes.find(c => c.nombre === lookalike) || null;
+      return {
+        modo: "lookalike",
+        tipo: "empresa",
+        cliente_referencia: ref ? {
+          nombre:      ref.nombre      ?? "",
+          web:         ref.web         ?? "",
+          descripcion: ref.descripcion ?? "",
+          comentario:  ref.comentario  ?? "",
+          industria:   ref.industria   ?? "",
+          productos:   ref.productos   ?? [],
+          geografias:  ref.geografias  ?? [],
+          tamano:      ref.tamano      ?? "",
+          revenue:     ref.revenue     ?? "",
+        } : { nombre: lookalike },
+        filtros_secundarios: {
+          industries_devengo: selectedDevengo.map(v => ({ id: v.id, label: v.label, category: v.category })),
+          industrias_surfe:   mergedIndustries,
+          geografias:         geos,
+          tamanos:            tamanosSel,
+          revenues,
+          num_resultados:     numResults,
+        },
+      };
+    }
+
+    return {
+      modo: "prospect",
       tipo: "empresa",
       industries: mergedIndustries,
       industries_devengo: selectedDevengo.map(v => ({ id: v.id, label: v.label, category: v.category })),
@@ -601,19 +638,24 @@ export default function ProspectModule() {
       revenues,
       num_resultados: numResults,
     };
-    if (lookalike) { payload.lookalike = lookalike; payload.lookalike_data = clientes.find(c => c.nombre === lookalike) || null; }
-    return payload;
   };
   const payloadJson = JSON.stringify(buildPayload(), null, 2);
   const canSend = selectedDevengoIds.length > 0 || industries.length > 0 || !!lookalike;
 
   const enviar = async () => {
-    if (!webhookUrl.trim()) { setError("Pega la URL del webhook de N8N."); return; }
+    if (!activeWebhookUrl) {
+      setError(isLookalike
+        ? "Falta configurar el webhook 'Serper · lookalike' en Config → Integraciones."
+        : "Falta configurar el webhook 'Surfe · prospect' en Config → Integraciones.");
+      return;
+    }
     setLoading(true); setError(null); setResultado(null); setSelectedDomains(new Set());
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 90000);
-      const res = await fetch(webhookUrl.trim(), { method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildPayload()) });
+      // Lookalike pasa por Serper + 2 nodos ChatGPT en N8N → tarda más.
+      const timeoutMs = isLookalike ? 180000 : 90000;
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      const res = await fetch(activeWebhookUrl, { method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildPayload()) });
       clearTimeout(timeout);
       if (!res.ok) { setError(`Error HTTP ${res.status} desde N8N.`); return; }
       const data = await res.json();
@@ -625,7 +667,8 @@ export default function ProspectModule() {
         saveCompanies(companies).then(() => getCompanies().then(setSavedCompanies)).catch(console.error);
       }
     } catch (e) {
-      setError(e.name === "AbortError" ? "Timeout: N8N tardó más de 90s." : `Error de red: ${e.message}`);
+      const timeoutSec = isLookalike ? 180 : 90;
+      setError(e.name === "AbortError" ? `Timeout: N8N tardó más de ${timeoutSec}s.` : `Error de red: ${e.message}`);
     } finally { setLoading(false); }
   };
 
@@ -935,10 +978,20 @@ export default function ProspectModule() {
           {/* Payload + envío */}
           {canSend && (
             <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              {isLookalike && (
+                <div className="px-6 py-3 bg-violet-50 border-b border-violet-100 flex items-start gap-2">
+                  <Search size={13} className="text-violet-600 mt-0.5 shrink-0" />
+                  <div className="text-xs text-violet-900/90">
+                    <span className="font-semibold">Modo Lookalike activo</span> — La búsqueda se enruta a <span className="font-mono">Serper + ChatGPT</span> usando <span className="font-semibold">{lookalike}</span> como referencia. Puede tardar hasta 3 minutos.
+                  </div>
+                </div>
+              )}
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">JSON payload</span>
-                  <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">listo para N8N</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${isLookalike ? "bg-violet-100 text-violet-700" : "bg-gray-100 text-gray-500"}`}>
+                    {activeWebhookLabel}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button onClick={() => setShowJson(s => !s)} className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all">{showJson ? "Ocultar" : "Ver JSON"}</button>
@@ -951,10 +1004,20 @@ export default function ProspectModule() {
               {showJson && <pre className="px-6 py-4 text-xs font-mono text-gray-600 bg-gray-50 overflow-x-auto">{payloadJson}</pre>}
               <div className="px-6 py-4 border-t border-gray-100 space-y-3">
                 <button onClick={enviar} disabled={loading}
-                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${loading ? "bg-indigo-100 text-indigo-400 cursor-not-allowed" : "bg-indigo-600 text-white hover:bg-indigo-700"}`}>
+                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    loading
+                      ? "bg-indigo-100 text-indigo-400 cursor-not-allowed"
+                      : isLookalike
+                        ? "bg-violet-600 text-white hover:bg-violet-700"
+                        : "bg-indigo-600 text-white hover:bg-indigo-700"
+                  }`}>
                   {loading
-                    ? <><span className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />Buscando empresas...</>
-                    : <><Zap size={13} />Enviar a N8N</>}
+                    ? <><span className="w-3.5 h-3.5 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
+                        {isLookalike ? "Buscando lookalikes…" : "Buscando empresas..."}
+                      </>
+                    : isLookalike
+                      ? <><Search size={13} />Buscar lookalikes de {lookalike}</>
+                      : <><Zap size={13} />Buscar empresas</>}
                 </button>
               </div>
             </section>
@@ -1015,6 +1078,9 @@ export default function ProspectModule() {
                         </th>
                         <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5 w-8">#</th>
                         <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Empresa</th>
+                        {companies.some(c => c?.similarity_score != null) && (
+                          <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Score</th>
+                        )}
                         <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Industrias</th>
                         <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Revenue</th>
                         <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-2.5">Empleados</th>
@@ -1041,6 +1107,21 @@ export default function ProspectModule() {
                                 className="text-xs text-gray-400 hover:text-indigo-600 font-mono">{company.domain}</a>
                             )}
                           </td>
+                          {companies.some(c => c?.similarity_score != null) && (
+                            <td className="px-4 py-3">
+                              {company.similarity_score != null ? (
+                                <span
+                                  title={company.similarity_reason || ""}
+                                  className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                    company.similarity_score >= 75 ? "bg-emerald-100 text-emerald-700"
+                                    : company.similarity_score >= 50 ? "bg-amber-100 text-amber-700"
+                                    : "bg-gray-100 text-gray-500"
+                                  }`}>
+                                  {company.similarity_score}
+                                </span>
+                              ) : <span className="text-xs text-gray-300">—</span>}
+                            </td>
+                          )}
                           <td className="px-4 py-3">
                             <div className="flex flex-wrap gap-1 max-w-xs">
                               {(company.industries ?? []).slice(0, 3).map(ind => (

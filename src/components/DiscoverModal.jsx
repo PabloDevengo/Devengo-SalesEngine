@@ -4,7 +4,7 @@ import { useApp } from "../context/AppContext";
 import { saveCompanies } from "../services/prospectsService";
 
 // ── Results table ────────────────────────────────────────────────────────────
-function CompanyRow({ company, tipo, added, onAdd }) {
+function CompanyRow({ company, tipo, added, onAdd, showScore }) {
   const domain = company.domain ?? company.web ?? "";
   const name   = company.name  ?? company.nombre ?? domain;
   const industries = Array.isArray(company.industries)
@@ -14,6 +14,7 @@ function CompanyRow({ company, tipo, added, onAdd }) {
     ? company.countries[0]
     : (company.countries ?? "");
   const isAdded = added.has(domain || name);
+  const score = company.similarity_score;
 
   return (
     <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
@@ -32,6 +33,21 @@ function CompanyRow({ company, tipo, added, onAdd }) {
           )}
         </div>
       </td>
+      {showScore && (
+        <td className="px-4 py-3">
+          {score != null ? (
+            <span
+              title={company.similarity_reason || ""}
+              className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                score >= 75 ? "bg-emerald-100 text-emerald-700"
+                : score >= 50 ? "bg-amber-100 text-amber-700"
+                : "bg-gray-100 text-gray-500"
+              }`}>
+              {score}
+            </span>
+          ) : <span className="text-xs text-gray-300">—</span>}
+        </td>
+      )}
       <td className="px-4 py-3 text-xs text-gray-500 max-w-[180px]">
         <span className="line-clamp-2">{industries}</span>
       </td>
@@ -60,12 +76,11 @@ function CompanyRow({ company, tipo, added, onAdd }) {
 
 // ── Main modal ───────────────────────────────────────────────────────────────
 export default function DiscoverModal({ seed, onClose, onAddCompetidor }) {
-  const { webhooks, setWebhook } = useApp();
+  const { webhooks } = useApp();
   const { tipo, data } = seed;
   const seedName = data.nombre ?? data.name ?? "";
 
-  const [webhookUrl,  setWebhookUrl]  = useState(import.meta.env.VITE_N8N_LOOKALIKE_WEBHOOK || "");
-  useEffect(() => { if (webhooks.lookalike) setWebhookUrl(webhooks.lookalike); }, [webhooks.lookalike]);
+  const webhookUrl = (webhooks.lookalike || "").trim();
   const [numResults,  setNumResults]  = useState(20);
   const [loading,     setLoading]     = useState(false);
   const [results,     setResults]     = useState(null);
@@ -76,43 +91,48 @@ export default function DiscoverModal({ seed, onClose, onAddCompetidor }) {
   // ── Auto-launch once webhook URL is ready ────────────────────────────────
   const [launched, setLaunched] = useState(false);
   useEffect(() => {
-    if (!launched && !loading) {
+    if (!launched && !loading && webhookUrl) {
       setLaunched(true);
       buscar();
     }
   }, [webhookUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Build payload ─────────────────────────────────────────────────────────
+  // Mismo esquema unificado que ProspectModule (modo: "lookalike") para que
+  // Vicente pueda reusar el workflow N8N de lookalike en ambas entradas.
   function buildPayload() {
-    if (tipo === "cliente") {
-      return {
-        tipo: "lookalike_cliente",
-        seed: {
-          nombre:     data.nombre     ?? "",
-          web:        data.web        ?? "",
-          industria:  data.industria  ?? "",
-          productos:  data.productos  ?? [],
-        },
-        num_resultados: numResults,
-      };
-    }
+    const ref = tipo === "cliente"
+      ? {
+          nombre:      data.nombre      ?? "",
+          web:         data.web         ?? "",
+          descripcion: data.descripcion ?? "",
+          comentario:  data.comentario  ?? "",
+          industria:   data.industria   ?? "",
+          productos:   data.productos   ?? [],
+          geografias:  data.geografias  ?? [],
+          tamano:      data.tamano      ?? "",
+          revenue:     data.revenue     ?? "",
+        }
+      : {
+          nombre:      data.nombre      ?? "",
+          web:         data.web         ?? "",
+          descripcion: data.descripcion ?? "",
+          producto:    data.producto    ?? "",
+          geografias:  data.geografias  ?? [],
+        };
     return {
-      tipo: "lookalike_competidor",
-      seed: {
-        nombre:     data.nombre    ?? "",
-        web:        data.web       ?? "",
-        producto:   data.producto  ?? "",
-        geografias: data.geografias ?? [],
-      },
-      num_resultados: numResults,
+      modo: "lookalike",
+      tipo: "empresa",
+      origen: tipo === "cliente" ? "playbook_cliente" : "playbook_competidor",
+      cliente_referencia: ref,
+      filtros_secundarios: { num_resultados: numResults },
     };
   }
 
   // ── Search ────────────────────────────────────────────────────────────────
   async function buscar() {
     if (!webhookUrl) {
-      setError("Configura la URL del webhook en la sección avanzada.");
-      setShowConfig(true);
+      setError("Falta configurar el webhook 'Serper · lookalike' en Config → Integraciones.");
       return;
     }
     setLoading(true);
@@ -126,7 +146,7 @@ export default function DiscoverModal({ seed, onClose, onAddCompetidor }) {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify(payload),
-        signal:  AbortSignal.timeout(90_000),
+        signal:  AbortSignal.timeout(180_000),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const raw = await res.json();
@@ -192,7 +212,7 @@ export default function DiscoverModal({ seed, onClose, onAddCompetidor }) {
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Loader2 size={28} className={`text-${accentColor}-500 animate-spin`} />
               <p className="text-sm text-gray-400">Buscando empresas similares…</p>
-              <p className="text-xs text-gray-300">Puede tardar hasta 30 segundos</p>
+              <p className="text-xs text-gray-300">Serper + ChatGPT — puede tardar hasta 3 minutos</p>
             </div>
           )}
 
@@ -236,6 +256,9 @@ export default function DiscoverModal({ seed, onClose, onAddCompetidor }) {
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
                         <th className="px-4 py-2.5 text-xs font-semibold text-gray-500">Empresa</th>
+                        {results.some(c => c?.similarity_score != null) && (
+                          <th className="px-4 py-2.5 text-xs font-semibold text-gray-500">Score</th>
+                        )}
                         <th className="px-4 py-2.5 text-xs font-semibold text-gray-500">Industria</th>
                         <th className="px-4 py-2.5 text-xs font-semibold text-gray-500">País</th>
                         <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 text-right">
@@ -251,6 +274,7 @@ export default function DiscoverModal({ seed, onClose, onAddCompetidor }) {
                           tipo={tipo}
                           added={added}
                           onAdd={handleAdd}
+                          showScore={results.some(c => c?.similarity_score != null)}
                         />
                       ))}
                     </tbody>
