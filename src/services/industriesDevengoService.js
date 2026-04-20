@@ -53,15 +53,21 @@ export async function deleteIndustryDevengo(id) {
   if (error) throw error
 }
 
-// ── Seed on empty ────────────────────────────────────────────────────────────
-// Si la tabla está vacía, volcamos la semilla. Devuelve el array final.
+// ── Reconcile seed on load ───────────────────────────────────────────────────
+// El archivo `industriesDevengoSeed.js` es la fuente de verdad de las 55
+// verticales canónicas. En cada carga de la app reconciliamos Supabase para
+// que coincida 1:1 con la semilla (insert + update) sin borrar filas extra
+// que el usuario haya podido añadir manualmente desde la UI.
+//
+// Efecto práctico: si editas el seed en el repo y haces deploy, los cambios
+// aparecen automáticamente — no hace falta añadir nada a mano en Playbook.
 export async function ensureSeedLoaded() {
-  const current = await getIndustriesDevengo()
-  if (current.length > 0) return current
   const rows = INDUSTRIES_DEVENGO_SEED.map(industryToDb)
-  const { error } = await supabase.from('industries_devengo').insert(rows)
+  const { error } = await supabase
+    .from('industries_devengo')
+    .upsert(rows, { onConflict: 'id' })
   if (error) {
-    console.error('[industries_devengo] seed insert failed:', error)
+    console.error('[industries_devengo] reconcile failed:', error)
     // Devuelve la semilla en memoria igualmente para no bloquear la UI.
     return INDUSTRIES_DEVENGO_SEED.map(dbToIndustry)
   }

@@ -1,461 +1,513 @@
-// ── Industry Devengo — seed inicial ──────────────────────────────────────────
-// Lista canónica aprobada por compliance. Cada vertical mapea a:
-//   · surfe_industries[]  → se envían tal cual a Surfe (flujo Empresas).
-//   · serper_keywords[]   → frases para construir búsquedas en Google via Serper
-//                            (flujo Contactos por industria).
+// ── Industry Devengo — seed canónico (55 verticales internas) ────────────────
+// Taxonomía Devengo aprobada internamente. Cada vertical mapea 1..N a:
+//   · surfe_industries[]  → industrias que Surfe reconoce (taxonomía tipo
+//                           LinkedIn). Se envían tal cual al buscar empresas.
+//   · serper_keywords[]   → queries Google/Serper para el flujo "Contactos
+//                           por industria".
 //
-// Primera pasada generada automáticamente — editable en Playbook → Verticales.
+// Ambos arrays son editables desde Playbook → Verticales · Industry Devengo.
 
 export const INDUSTRIES_DEVENGO_SEED = [
-  // ── Financial Services ──────────────────────────────────────────
-  {
-    id: "accounts-payable-platform",
-    label: "Accounts Payable Platform",
-    category: "Financial Services",
-    descripcion: "Plataformas de automatización de cuentas a pagar / AP.",
-    surfe_industries: ["FinTech", "Accounting", "Billing", "B2B"],
-    serper_keywords: ["accounts payable platform", "AP automation", "invoice processing software"],
-  },
-  {
-    id: "accounts-receivable-platform",
-    label: "Accounts Receivable Platform",
-    category: "Financial Services",
-    descripcion: "Plataformas de automatización de cuentas a cobrar / AR.",
-    surfe_industries: ["FinTech", "Accounting", "Billing", "B2B"],
-    serper_keywords: ["accounts receivable platform", "AR automation", "invoice collections software"],
-  },
-  {
-    id: "baas-licensed",
-    label: "Baas - Licensed",
-    category: "Financial Services",
-    descripcion: "Banking-as-a-Service con licencia bancaria propia.",
-    surfe_industries: ["FinTech", "Banking", "Financial Services"],
-    serper_keywords: ["banking as a service", "licensed BaaS", "BaaS platform"],
-  },
-  {
-    id: "baas-unlicensed",
-    label: "Baas - Unlicensed",
-    category: "Financial Services",
-    descripcion: "BaaS sin licencia propia — depende de partner bancario.",
-    surfe_industries: ["FinTech", "Financial Services"],
-    serper_keywords: ["banking as a service", "embedded finance", "BaaS platform"],
-  },
-  {
-    id: "banking",
-    label: "Banking",
-    category: "Financial Services",
-    descripcion: "Bancos tradicionales y neobancos.",
-    surfe_industries: ["Banking", "Financial Services"],
-    serper_keywords: ["commercial bank", "retail bank", "digital bank", "neobank"],
-  },
-  {
-    id: "cross-border-fx",
-    label: "Cross Border - FX",
-    category: "Financial Services",
-    descripcion: "Plataformas de divisas y FX cross-border.",
-    surfe_industries: ["FinTech", "Financial Services", "Payments"],
-    serper_keywords: ["foreign exchange platform", "FX provider", "currency exchange", "cross border FX"],
-  },
-  {
-    id: "cross-border-psp",
-    label: "Cross Border - PSP",
-    category: "Financial Services",
-    descripcion: "PSPs especializados en pagos internacionales.",
-    surfe_industries: ["FinTech", "Payments", "Financial Services"],
-    serper_keywords: ["cross border payments", "international payments provider", "global PSP"],
-  },
-  {
-    id: "crowdfunding",
-    label: "Crowdfunding",
-    category: "Financial Services",
-    descripcion: "Plataformas de crowdfunding equity / rewards / lending.",
-    surfe_industries: ["Crowdfunding", "FinTech"],
-    serper_keywords: ["crowdfunding platform", "equity crowdfunding", "reward crowdfunding"],
-  },
-  {
-    id: "crypto",
-    label: "Crypto",
-    category: "Financial Services",
-    descripcion: "Exchanges, wallets y empresas de activos digitales.",
-    surfe_industries: ["Cryptocurrency", "Blockchain", "Bitcoin", "Ethereum"],
-    serper_keywords: ["cryptocurrency exchange", "crypto wallet", "digital assets platform", "blockchain company"],
-  },
-  {
-    id: "debt-recovery-services",
-    label: "Debt Recovery Services",
-    category: "Financial Services",
-    descripcion: "Agencias y plataformas de recobro.",
-    surfe_industries: ["Debt Collections", "Collection Agency", "Financial Services"],
-    serper_keywords: ["debt recovery", "debt collection agency", "receivables management"],
-  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  PAYMENTS
+  // ══════════════════════════════════════════════════════════════════════
   {
     id: "fintech-adquirer",
     label: "Fintech - Adquirer",
-    category: "Financial Services",
-    descripcion: "Adquirentes / merchant acquiring.",
-    surfe_industries: ["FinTech", "Payments", "Credit Cards"],
-    serper_keywords: ["merchant acquirer", "card acquiring", "acquiring bank", "merchant acquiring services"],
-  },
-  {
-    id: "fintech-ais",
-    label: "Fintech - AIS",
-    category: "Financial Services",
-    descripcion: "Account Information Service providers (AISPs) puros.",
-    surfe_industries: ["FinTech", "Financial Services", "Banking"],
-    serper_keywords: ["account information service", "AISP", "open banking AIS"],
-  },
-  {
-    id: "fintech-ais-pisp",
-    label: "Fintech - AIS + PISP",
-    category: "Financial Services",
-    descripcion: "Proveedores combinados AIS + PISP (open banking completo).",
-    surfe_industries: ["FinTech", "Financial Services", "Banking"],
-    serper_keywords: ["open banking", "AIS PISP", "payment initiation service", "account information provider"],
+    category: "Payments",
+    descripcion: "Adquirentes de tarjeta — procesan pagos para comercios.",
+    surfe_industries: ["Financial Services", "Banking"],
+    serper_keywords: ["card acquirer", "merchant acquirer", "payment acquirer", "acquiring bank"],
   },
   {
     id: "fintech-card-processor",
     label: "Fintech - Card Processor",
-    category: "Financial Services",
-    descripcion: "Procesadores de tarjetas.",
-    surfe_industries: ["FinTech", "Payments", "Credit Cards"],
+    category: "Payments",
+    descripcion: "Procesadores de tarjeta — routing, autorización, clearing.",
+    surfe_industries: ["Financial Services", "Information Technology and Services"],
     serper_keywords: ["card processor", "payment processor", "card processing platform"],
   },
   {
     id: "fintech-emi",
     label: "Fintech - EMI",
-    category: "Financial Services",
-    descripcion: "Entidades de Dinero Electrónico (E-Money Institutions).",
-    surfe_industries: ["FinTech", "Financial Services", "Banking"],
+    category: "Payments",
+    descripcion: "Electronic Money Institutions — emisión y custodia de dinero electrónico.",
+    surfe_industries: ["Financial Services", "Banking"],
     serper_keywords: ["electronic money institution", "EMI license", "e-money provider"],
   },
   {
     id: "fintech-issuer",
     label: "Fintech - Issuer",
-    category: "Financial Services",
-    descripcion: "Emisores de tarjetas (issuing).",
-    surfe_industries: ["FinTech", "Credit Cards", "Debit Cards"],
-    serper_keywords: ["card issuer", "issuing platform", "card issuing provider"],
-  },
-  {
-    id: "fintech-pisp",
-    label: "Fintech - PISP",
-    category: "Financial Services",
-    descripcion: "Payment Initiation Service Providers puros.",
-    surfe_industries: ["FinTech", "Payments"],
-    serper_keywords: ["payment initiation", "PISP", "open banking payments"],
+    category: "Payments",
+    descripcion: "Emisores de tarjeta — consumer, corporate, virtual cards.",
+    surfe_industries: ["Financial Services", "Banking"],
+    serper_keywords: ["card issuer", "card issuing platform", "virtual card issuing", "BIN sponsor"],
   },
   {
     id: "fintech-psp",
     label: "Fintech - PSP",
-    category: "Financial Services",
-    descripcion: "Payment Service Providers / gateways.",
-    surfe_industries: ["FinTech", "Payments"],
-    serper_keywords: ["payment service provider", "payment gateway", "PSP"],
-  },
-  {
-    id: "fund",
-    label: "Fund",
-    category: "Financial Services",
-    descripcion: "Fondos de inversión / VC / PE / hedge.",
-    surfe_industries: ["Hedge Funds", "Venture Capital", "Asset Management", "Investment Banking"],
-    serper_keywords: ["investment fund", "venture fund", "hedge fund", "private equity fund"],
-  },
-  {
-    id: "insurtech",
-    label: "Insurtech",
-    category: "Financial Services",
-    descripcion: "Compañías de tecnología aseguradora.",
-    surfe_industries: ["InsurTech", "Insurance"],
-    serper_keywords: ["insurtech", "digital insurance", "insurance technology"],
-  },
-  {
-    id: "investment-services",
-    label: "Investment Services",
-    category: "Financial Services",
-    descripcion: "Wealth management, brokerage y robo-advisors.",
-    surfe_industries: ["Asset Management", "Wealth Management", "Investment Banking", "Financial Exchanges"],
-    serper_keywords: ["wealth management", "robo advisor", "brokerage", "investment platform"],
-  },
-  {
-    id: "lending",
-    label: "Lending",
-    category: "Financial Services",
-    descripcion: "Lenders digitales / consumer & commercial.",
-    surfe_industries: ["Lending", "Consumer Lending", "Commercial Lending", "FinTech"],
-    serper_keywords: ["lending platform", "digital lender", "online loans"],
-  },
-  {
-    id: "lending-bnpl",
-    label: "Lending - BNPL",
-    category: "Financial Services",
-    descripcion: "Buy Now Pay Later.",
-    surfe_industries: ["Lending", "Consumer Lending", "FinTech", "E-Commerce"],
-    serper_keywords: ["buy now pay later", "BNPL", "pay later platform"],
-  },
-  {
-    id: "lending-factoring",
-    label: "Lending - Factoring",
-    category: "Financial Services",
-    descripcion: "Factoring e invoice financing.",
-    surfe_industries: ["Lending", "Commercial Lending", "FinTech"],
-    serper_keywords: ["factoring", "invoice financing", "receivables financing"],
-  },
-  {
-    id: "lending-rbf",
-    label: "Lending - Revenue Based Financing",
-    category: "Financial Services",
-    descripcion: "Revenue Based Financing / financiación por ingresos.",
-    surfe_industries: ["Lending", "Commercial Lending", "FinTech"],
-    serper_keywords: ["revenue based financing", "RBF", "revenue based loans"],
-  },
-  {
-    id: "microlending",
-    label: "Microlending",
-    category: "Financial Services",
-    descripcion: "Microcrédito y microfinanzas.",
-    surfe_industries: ["Lending", "Consumer Lending", "FinTech"],
-    serper_keywords: ["microlending", "microfinance", "microcredit"],
-  },
-  {
-    id: "mtos",
-    label: "MTOs",
-    category: "Financial Services",
-    descripcion: "Money Transfer Operators.",
-    surfe_industries: ["FinTech", "Payments", "Financial Services"],
-    serper_keywords: ["money transfer operator", "MTO", "money transfer service"],
+    category: "Payments",
+    descripcion: "Payment Service Providers — gateway + adquirencia empaquetada.",
+    surfe_industries: ["Financial Services"],
+    serper_keywords: ["payment service provider", "PSP platform", "payment gateway"],
   },
   {
     id: "payments-orchestrator",
     label: "Payments Orchestrator",
-    category: "Financial Services",
-    descripcion: "Orquestación y routing de pagos.",
-    surfe_industries: ["FinTech", "Payments"],
+    category: "Payments",
+    descripcion: "Orquestadores multi-PSP — routing dinámico, smart retries.",
+    surfe_industries: ["Financial Services", "Information Technology and Services"],
     serper_keywords: ["payment orchestration", "payments orchestrator", "payment routing platform"],
+  },
+  {
+    id: "cross-border-fx",
+    label: "Cross Border - FX",
+    category: "Payments",
+    descripcion: "FX y divisas cross-border — mesas de FX, liquidity providers.",
+    surfe_industries: ["Financial Services", "Capital Markets"],
+    serper_keywords: ["cross border FX", "foreign exchange platform", "FX provider", "currency conversion"],
+  },
+  {
+    id: "cross-border-psp",
+    label: "Cross Border - PSP",
+    category: "Payments",
+    descripcion: "PSPs especializados en pagos internacionales y payouts multidivisa.",
+    surfe_industries: ["Financial Services"],
+    serper_keywords: ["cross border payments", "international payments platform", "multi-currency PSP"],
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  REMITTANCES & MONEY TRANSFER
+  // ══════════════════════════════════════════════════════════════════════
+  {
+    id: "mtos",
+    label: "MTOs",
+    category: "Remittances & Money Transfer",
+    descripcion: "Money Transfer Operators — envío de dinero retail internacional.",
+    surfe_industries: ["Financial Services"],
+    serper_keywords: ["money transfer operator", "MTO", "international money transfer"],
   },
   {
     id: "remittances",
     label: "Remittances",
-    category: "Financial Services",
-    descripcion: "Remesas internacionales.",
-    surfe_industries: ["FinTech", "Payments", "Financial Services"],
-    serper_keywords: ["remittance platform", "money remittance", "international money transfer"],
+    category: "Remittances & Money Transfer",
+    descripcion: "Remesas — envío peer-to-peer entre países, corredores específicos.",
+    surfe_industries: ["Financial Services"],
+    serper_keywords: ["remittance platform", "remittance service", "cross border remittances"],
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  BANKING & BAAS
+  // ══════════════════════════════════════════════════════════════════════
+  {
+    id: "banking",
+    label: "Banking",
+    category: "Banking & BaaS",
+    descripcion: "Bancos tradicionales, neobancos, challenger banks.",
+    surfe_industries: ["Banking", "Financial Services"],
+    serper_keywords: ["commercial bank", "retail bank", "neobank", "digital bank", "challenger bank"],
+  },
+  {
+    id: "baas-licensed",
+    label: "Baas - Licensed",
+    category: "Banking & BaaS",
+    descripcion: "Banking-as-a-Service con licencia bancaria propia.",
+    surfe_industries: ["Banking", "Financial Services"],
+    serper_keywords: ["banking as a service", "licensed BaaS", "BaaS with banking license"],
+  },
+  {
+    id: "baas-unlicensed",
+    label: "Baas - Unlicensed",
+    category: "Banking & BaaS",
+    descripcion: "BaaS sin licencia — operan vía partner bancario.",
+    surfe_industries: ["Financial Services", "Information Technology and Services"],
+    serper_keywords: ["banking as a service", "embedded finance", "BaaS platform", "embedded banking"],
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  OPEN BANKING
+  // ══════════════════════════════════════════════════════════════════════
+  {
+    id: "fintech-ais",
+    label: "Fintech - AIS",
+    category: "Open Banking",
+    descripcion: "Account Information Service providers — agregación de cuentas.",
+    surfe_industries: ["Financial Services", "Information Technology and Services"],
+    serper_keywords: ["account information service", "AIS provider", "open banking data", "account aggregation"],
+  },
+  {
+    id: "fintech-pisp",
+    label: "Fintech - PISP",
+    category: "Open Banking",
+    descripcion: "Payment Initiation Service providers — pagos A2A vía open banking.",
+    surfe_industries: ["Financial Services", "Information Technology and Services"],
+    serper_keywords: ["payment initiation service", "PISP provider", "open banking payments", "A2A payments"],
+  },
+  {
+    id: "fintech-ais-pisp",
+    label: "Fintech - AIS + PISP",
+    category: "Open Banking",
+    descripcion: "Proveedores completos AIS + PISP — datos y pagos.",
+    surfe_industries: ["Financial Services", "Information Technology and Services"],
+    serper_keywords: ["open banking platform", "AIS PISP provider", "open banking API"],
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  LENDING & CREDIT
+  // ══════════════════════════════════════════════════════════════════════
+  {
+    id: "lending",
+    label: "Lending",
+    category: "Lending & Credit",
+    descripcion: "Préstamos — consumer, SME, hipotecario.",
+    surfe_industries: ["Financial Services", "Banking"],
+    serper_keywords: ["lending platform", "online lender", "digital lending", "SME lending"],
+  },
+  {
+    id: "lending-bnpl",
+    label: "Lending - BNPL",
+    category: "Lending & Credit",
+    descripcion: "Buy Now Pay Later — pago fraccionado en el checkout.",
+    surfe_industries: ["Financial Services"],
+    serper_keywords: ["buy now pay later", "BNPL", "split payments", "installment payments"],
+  },
+  {
+    id: "lending-factoring",
+    label: "Lending - Factoring",
+    category: "Lending & Credit",
+    descripcion: "Factoring — adelanto de facturas B2B.",
+    surfe_industries: ["Financial Services"],
+    serper_keywords: ["invoice factoring", "factoring platform", "accounts receivable financing"],
+  },
+  {
+    id: "lending-rbf",
+    label: "Lending - Revenue Based Financing",
+    category: "Lending & Credit",
+    descripcion: "Financiación basada en ingresos — RBF para SaaS/ecommerce.",
+    surfe_industries: ["Financial Services", "Venture Capital & Private Equity"],
+    serper_keywords: ["revenue based financing", "RBF", "non-dilutive financing"],
+  },
+  {
+    id: "microlending",
+    label: "Microlending",
+    category: "Lending & Credit",
+    descripcion: "Microcréditos — ticket pequeño, consumer o SME.",
+    surfe_industries: ["Financial Services"],
+    serper_keywords: ["microlending", "microloan", "microfinance platform"],
   },
   {
     id: "salary-advance",
     label: "Salary Advance",
-    category: "Financial Services",
-    descripcion: "Earned Wage Access / adelanto de nómina.",
-    surfe_industries: ["FinTech", "Consumer Lending", "Human Resources"],
-    serper_keywords: ["salary advance", "earned wage access", "on demand pay"],
+    category: "Lending & Credit",
+    descripcion: "Adelanto de nómina — Earned Wage Access.",
+    surfe_industries: ["Financial Services", "Human Resources"],
+    serper_keywords: ["salary advance", "earned wage access", "EWA", "on-demand pay"],
   },
   {
-    id: "tax-tech",
-    label: "Tax Tech",
-    category: "Financial Services",
-    descripcion: "Tecnología fiscal y tax compliance.",
-    surfe_industries: ["FinTech", "Accounting", "SaaS"],
-    serper_keywords: ["tax technology", "tax software", "taxtech", "tax compliance platform"],
+    id: "debt-recovery-services",
+    label: "Debt Recovery Services",
+    category: "Lending & Credit",
+    descripcion: "Cobranza y recuperación de deudas — B2C y B2B.",
+    surfe_industries: ["Financial Services", "Legal Services"],
+    serper_keywords: ["debt collection", "debt recovery", "collections platform"],
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  INVESTMENT & CAPITAL
+  // ══════════════════════════════════════════════════════════════════════
+  {
+    id: "fund",
+    label: "Fund",
+    category: "Investment & Capital",
+    descripcion: "Fondos de inversión — VC, PE, hedge, asset management.",
+    surfe_industries: ["Venture Capital & Private Equity", "Investment Management", "Capital Markets"],
+    serper_keywords: ["venture capital fund", "private equity fund", "investment fund", "asset management"],
+  },
+  {
+    id: "investment-services",
+    label: "Investment Services",
+    category: "Investment & Capital",
+    descripcion: "Brokers, wealth management, robo-advisors, trading platforms.",
+    surfe_industries: ["Investment Management", "Capital Markets", "Financial Services"],
+    serper_keywords: ["investment platform", "wealth management", "robo-advisor", "trading platform", "brokerage"],
+  },
+  {
+    id: "crowdfunding",
+    label: "Crowdfunding",
+    category: "Investment & Capital",
+    descripcion: "Plataformas de crowdfunding — equity, lending, rewards.",
+    surfe_industries: ["Financial Services", "Internet"],
+    serper_keywords: ["crowdfunding platform", "equity crowdfunding", "crowdlending"],
+  },
+  {
+    id: "crypto",
+    label: "Crypto",
+    category: "Investment & Capital",
+    descripcion: "Exchanges, custodios, wallets, infra cripto y Web3.",
+    surfe_industries: ["Financial Services", "Computer Software"],
+    serper_keywords: ["cryptocurrency exchange", "crypto wallet", "crypto custody", "digital assets platform"],
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  INSURANCE
+  // ══════════════════════════════════════════════════════════════════════
+  {
+    id: "insurtech",
+    label: "Insurtech",
+    category: "Insurance",
+    descripcion: "Aseguradoras digitales y plataformas insurtech.",
+    surfe_industries: ["Insurance"],
+    serper_keywords: ["insurtech", "digital insurance", "insurance platform", "online insurance"],
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  B2B FINANCE & OPS
+  // ══════════════════════════════════════════════════════════════════════
+  {
+    id: "accounts-payable-platform",
+    label: "Accounts Payable Platform",
+    category: "B2B Finance & Ops",
+    descripcion: "Automatización de cuentas a pagar / AP.",
+    surfe_industries: ["Financial Services", "Accounting", "Computer Software"],
+    serper_keywords: ["accounts payable platform", "AP automation", "invoice processing software"],
+  },
+  {
+    id: "accounts-receivable-platform",
+    label: "Accounts Receivable Platform",
+    category: "B2B Finance & Ops",
+    descripcion: "Automatización de cuentas a cobrar / AR.",
+    surfe_industries: ["Financial Services", "Accounting", "Computer Software"],
+    serper_keywords: ["accounts receivable platform", "AR automation", "invoice collections software"],
   },
   {
     id: "treasury-management",
     label: "Treasury Management",
-    category: "Financial Services",
-    descripcion: "Treasury management / cash management corporativo.",
-    surfe_industries: ["FinTech", "Financial Services", "Banking"],
-    serper_keywords: ["treasury management", "corporate treasury", "cash management platform"],
+    category: "B2B Finance & Ops",
+    descripcion: "Plataformas de tesorería corporativa — cash management, liquidez.",
+    surfe_industries: ["Financial Services", "Computer Software"],
+    serper_keywords: ["treasury management", "corporate treasury platform", "cash management software"],
+  },
+  {
+    id: "tax-tech",
+    label: "Tax Tech",
+    category: "B2B Finance & Ops",
+    descripcion: "Software fiscal — compliance, reporting, indirect tax.",
+    surfe_industries: ["Accounting", "Computer Software", "Financial Services"],
+    serper_keywords: ["tax technology", "tax automation", "tax compliance software", "VAT software"],
+  },
+  {
+    id: "payroll",
+    label: "Payroll",
+    category: "B2B Finance & Ops",
+    descripcion: "Plataformas de nómina — local y global.",
+    surfe_industries: ["Human Resources", "Computer Software"],
+    serper_keywords: ["payroll platform", "payroll software", "global payroll", "HRIS payroll"],
+  },
+  {
+    id: "employee-benefits",
+    label: "Employee Benefits",
+    category: "B2B Finance & Ops",
+    descripcion: "Beneficios para empleados — flexible benefits, wellness, comida.",
+    surfe_industries: ["Human Resources", "Insurance"],
+    serper_keywords: ["employee benefits platform", "flexible benefits", "employee rewards"],
+  },
+  {
+    id: "software-erp",
+    label: "Software/ERP",
+    category: "B2B Finance & Ops",
+    descripcion: "ERPs, SaaS financiero y operativo B2B.",
+    surfe_industries: ["Computer Software", "Information Technology and Services"],
+    serper_keywords: ["ERP software", "enterprise resource planning", "business management software"],
   },
 
-  // ── Retail / Marketplace ────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  //  IDENTITY & COMPLIANCE
+  // ══════════════════════════════════════════════════════════════════════
   {
-    id: "ecommerce",
-    label: "Ecommerce",
-    category: "Retail",
-    descripcion: "Retailers digitales y D2C.",
-    surfe_industries: ["E-Commerce", "E-Commerce Platforms", "Retail"],
-    serper_keywords: ["ecommerce retailer", "online store", "D2C brand"],
+    id: "id-verification-solutions",
+    label: "ID and Verification Solutions",
+    category: "Identity & Compliance",
+    descripcion: "KYC, KYB, AML, identity verification, document checks.",
+    surfe_industries: ["Computer Software", "Information Technology and Services", "Financial Services"],
+    serper_keywords: ["identity verification", "KYC platform", "KYB provider", "AML software", "document verification"],
   },
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  PROFESSIONAL SERVICES
+  // ══════════════════════════════════════════════════════════════════════
   {
-    id: "loyalty-cashback",
-    label: "Loyalty/Cashback",
-    category: "Retail",
-    descripcion: "Programas de fidelidad y cashback.",
-    surfe_industries: ["Loyalty Programs", "Retail", "E-Commerce"],
-    serper_keywords: ["loyalty program platform", "cashback platform", "rewards program"],
+    id: "consulting-services",
+    label: "Consulting Services",
+    category: "Professional Services",
+    descripcion: "Consultoras de negocio, tecnología y estrategia.",
+    surfe_industries: ["Management Consulting", "Information Technology and Services"],
+    serper_keywords: ["management consulting", "business consulting", "strategy consulting", "IT consulting"],
   },
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  MARKETPLACE
+  // ══════════════════════════════════════════════════════════════════════
   {
     id: "marketplace-content-creators",
     label: "Marketplace - Content Creators",
     category: "Marketplace",
-    descripcion: "Creator economy y plataformas para creadores.",
-    surfe_industries: ["Marketplace", "Content Creators", "Content", "Social Media"],
-    serper_keywords: ["creator economy", "content creator platform", "creator marketplace"],
+    descripcion: "Marketplaces de creators — monetización, suscripciones, fan platforms.",
+    surfe_industries: ["Internet", "Media Production", "Entertainment"],
+    serper_keywords: ["creator economy platform", "content creator marketplace", "creator monetization"],
   },
   {
     id: "marketplace-products",
     label: "Marketplace - Products",
     category: "Marketplace",
-    descripcion: "Marketplaces de productos.",
-    surfe_industries: ["Marketplace", "E-Commerce", "Retail", "B2C"],
-    serper_keywords: ["product marketplace", "online marketplace", "multi vendor marketplace"],
+    descripcion: "Marketplaces de productos físicos — retail multi-vendor.",
+    surfe_industries: ["Internet", "Retail", "Consumer Goods"],
+    serper_keywords: ["product marketplace", "multi-vendor marketplace", "online marketplace"],
   },
   {
     id: "marketplace-services",
     label: "Marketplace - Services",
     category: "Marketplace",
-    descripcion: "Marketplaces de servicios on-demand.",
-    surfe_industries: ["Marketplace", "Service Industry"],
-    serper_keywords: ["services marketplace", "on demand services", "service booking platform"],
+    descripcion: "Marketplaces de servicios — home, local, on-demand.",
+    surfe_industries: ["Internet", "Consumer Services"],
+    serper_keywords: ["services marketplace", "on-demand services", "service platform"],
   },
   {
     id: "marketplace-talent",
     label: "Marketplace - Talent",
     category: "Marketplace",
-    descripcion: "Talent marketplaces, freelance y gig economy.",
-    surfe_industries: ["Marketplace", "Freelance", "Recruiting", "Employment"],
+    descripcion: "Marketplaces de talento — freelance, gig, staffing.",
+    surfe_industries: ["Staffing and Recruiting", "Internet", "Human Resources"],
     serper_keywords: ["talent marketplace", "freelance platform", "gig economy platform"],
   },
 
-  // ── Logistics / Mobility / Travel ───────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  //  COMMERCE & DELIVERY
+  // ══════════════════════════════════════════════════════════════════════
+  {
+    id: "ecommerce",
+    label: "Ecommerce",
+    category: "Commerce & Delivery",
+    descripcion: "Retailers online, D2C, marketplaces verticales.",
+    surfe_industries: ["Retail", "Internet", "Consumer Goods"],
+    serper_keywords: ["ecommerce", "online retailer", "D2C brand", "online store"],
+  },
   {
     id: "delivery-services",
     label: "Delivery Services",
-    category: "Logistics",
-    descripcion: "Delivery last mile y courier.",
-    surfe_industries: ["Delivery Service", "Same Day Delivery", "Courier Service", "Logistics"],
-    serper_keywords: ["delivery service", "courier service", "last mile delivery"],
+    category: "Commerce & Delivery",
+    descripcion: "Entrega última milla — food, grocery, parcel.",
+    surfe_industries: ["Package/Freight Delivery", "Logistics and Supply Chain", "Consumer Services"],
+    serper_keywords: ["delivery service", "last mile delivery", "food delivery", "grocery delivery"],
   },
   {
-    id: "logistics",
-    label: "Logistics",
-    category: "Logistics",
-    descripcion: "3PL, freight forwarders y supply chain.",
-    surfe_industries: ["Logistics", "Freight Service", "Shipping", "Supply Chain Management", "Fleet Management"],
-    serper_keywords: ["logistics company", "3PL provider", "freight forwarder", "supply chain platform"],
-  },
-  {
-    id: "mobility",
-    label: "Mobility",
-    category: "Transportation",
-    descripcion: "Ride hailing, car sharing, micromobility, EV.",
-    surfe_industries: ["Transportation", "Ride Sharing", "Car Sharing", "Electric Vehicle", "Autonomous Vehicles"],
-    serper_keywords: ["mobility platform", "ride hailing", "shared mobility", "micromobility"],
-  },
-  {
-    id: "travel",
-    label: "Travel",
-    category: "Travel",
-    descripcion: "OTAs, agencias y operadores turísticos.",
-    surfe_industries: ["Travel", "Travel Agency", "Tourism", "Travel Accommodations"],
-    serper_keywords: ["online travel agency", "OTA", "travel platform", "tour operator"],
+    id: "loyalty-cashback",
+    label: "Loyalty/Cashback",
+    category: "Commerce & Delivery",
+    descripcion: "Programas de fidelización, cashback, rewards.",
+    surfe_industries: ["Marketing and Advertising", "Internet", "Financial Services"],
+    serper_keywords: ["loyalty program platform", "cashback app", "rewards platform"],
   },
 
-  // ── Real Estate ─────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  //  REAL ESTATE
+  // ══════════════════════════════════════════════════════════════════════
   {
     id: "prop-tech",
     label: "Prop Tech",
     category: "Real Estate",
-    descripcion: "Proptech y real estate technology.",
-    surfe_industries: ["Real Estate", "Property Management", "Property Development"],
-    serper_keywords: ["proptech", "property technology", "real estate technology"],
+    descripcion: "Proptech — marketplaces, SaaS inmobiliario, iBuyers.",
+    surfe_industries: ["Real Estate", "Computer Software"],
+    serper_keywords: ["proptech", "real estate technology", "property tech platform"],
   },
   {
     id: "property-management",
     label: "Property Management",
     category: "Real Estate",
-    descripcion: "Gestoras inmobiliarias y property managers.",
-    surfe_industries: ["Property Management", "Real Estate", "Rental Property"],
-    serper_keywords: ["property management company", "property manager", "rental management"],
+    descripcion: "Gestión de propiedades — residential, commercial, short-term.",
+    surfe_industries: ["Real Estate", "Commercial Real Estate"],
+    serper_keywords: ["property management", "property manager", "rental management platform"],
   },
 
-  // ── HR / Ops / Education ────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  //  MOBILITY & LOGISTICS
+  // ══════════════════════════════════════════════════════════════════════
   {
-    id: "employee-benefits",
-    label: "Employee Benefits",
-    category: "HR / Ops",
-    descripcion: "Beneficios flexibles y perks para empleados.",
-    surfe_industries: ["Employee Benefits", "Human Resources", "Employment"],
-    serper_keywords: ["employee benefits platform", "flexible benefits", "employee perks platform"],
+    id: "logistics",
+    label: "Logistics",
+    category: "Mobility & Logistics",
+    descripcion: "Logística y supply chain — freight, warehousing, 3PL.",
+    surfe_industries: ["Logistics and Supply Chain", "Transportation/Trucking/Railroad"],
+    serper_keywords: ["logistics provider", "supply chain platform", "freight forwarder", "3PL"],
   },
   {
-    id: "payroll",
-    label: "Payroll",
-    category: "HR / Ops",
-    descripcion: "Plataformas de nóminas.",
-    surfe_industries: ["Human Resources", "Accounting", "FinTech"],
-    serper_keywords: ["payroll platform", "payroll software", "payroll service"],
-  },
-  {
-    id: "education",
-    label: "Education",
-    category: "Education",
-    descripcion: "EdTech y plataformas educativas.",
-    surfe_industries: ["Education", "EdTech", "E-Learning", "Higher Education"],
-    serper_keywords: ["edtech", "online learning platform", "education technology"],
+    id: "mobility",
+    label: "Mobility",
+    category: "Mobility & Logistics",
+    descripcion: "Mobility — ride-hailing, shared mobility, EV, MaaS.",
+    surfe_industries: ["Automotive", "Transportation/Trucking/Railroad", "Internet"],
+    serper_keywords: ["mobility platform", "ride hailing", "shared mobility", "mobility as a service"],
   },
 
-  // ── Utilities / Telecom ─────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  //  UTILITIES & TELECOM
+  // ══════════════════════════════════════════════════════════════════════
   {
     id: "electricity-gas",
     label: "Electricity/Gas",
-    category: "Utilities",
-    descripcion: "Comercializadoras de electricidad y gas.",
-    surfe_industries: ["Energy", "Oil and Gas", "Electrical Distribution", "Power Grid"],
-    serper_keywords: ["electricity provider", "gas utility", "energy supplier", "comercializadora energía"],
+    category: "Utilities & Telecom",
+    descripcion: "Utilities — comercializadoras, distribuidoras, energías renovables.",
+    surfe_industries: ["Utilities", "Oil & Energy", "Renewables & Environment"],
+    serper_keywords: ["electricity provider", "gas utility", "energy retailer", "utility company"],
   },
   {
     id: "telecom",
     label: "Telecom",
-    category: "Telecom",
-    descripcion: "Operadores de telecomunicaciones.",
-    surfe_industries: ["Telecommunications", "Wireless", "ISP", "VoIP"],
-    serper_keywords: ["telecom operator", "telecommunications company", "mobile operator"],
+    category: "Utilities & Telecom",
+    descripcion: "Operadores de telecomunicaciones — móvil, fijo, ISPs.",
+    surfe_industries: ["Telecommunications"],
+    serper_keywords: ["telecom operator", "telecommunications company", "mobile operator", "ISP"],
   },
 
-  // ── Software / Professional Services / Security ────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  //  VERTICAL INDUSTRIES
+  // ══════════════════════════════════════════════════════════════════════
   {
-    id: "software-erp",
-    label: "Software/ERP",
-    category: "Software",
-    descripcion: "ERPs y enterprise software.",
-    surfe_industries: ["SaaS", "Enterprise Software", "Enterprise Resource Planning (ERP)"],
-    serper_keywords: ["ERP software", "enterprise software", "business management software"],
+    id: "education",
+    label: "Education",
+    category: "Vertical Industries",
+    descripcion: "Edtech, escuelas, universidades, e-learning.",
+    surfe_industries: ["Education Management", "E-Learning", "Higher Education"],
+    serper_keywords: ["edtech", "online education platform", "e-learning", "education technology"],
   },
   {
-    id: "id-verification",
-    label: "ID and Verification Solutions",
-    category: "Software",
-    descripcion: "KYC, IDV y antifraude.",
-    surfe_industries: ["Identity Management", "Cyber Security", "Fraud Detection", "Compliance"],
-    serper_keywords: ["identity verification", "KYC platform", "IDV solution", "identity solutions"],
-  },
-  {
-    id: "consulting-services",
-    label: "Consulting Services",
-    category: "Professional Services",
-    descripcion: "Consultoras de gestión y estrategia.",
-    surfe_industries: ["Consulting", "Management Consulting", "Professional Services"],
-    serper_keywords: ["consulting firm", "management consultancy", "strategy consulting"],
-  },
-
-  // ── Gaming / Entertainment ──────────────────────────────────────
-  {
-    id: "gambling",
-    label: "Gambling",
-    category: "Gaming",
-    descripcion: "iGaming, apuestas y casinos online.",
-    surfe_industries: ["Gambling", "Casino", "Online Games"],
-    serper_keywords: ["online gambling", "betting platform", "casino operator", "igaming"],
+    id: "travel",
+    label: "Travel",
+    category: "Vertical Industries",
+    descripcion: "OTAs, aerolíneas, hoteles, alojamiento, travel tech.",
+    surfe_industries: ["Leisure, Travel & Tourism", "Hospitality", "Airlines/Aviation"],
+    serper_keywords: ["travel platform", "OTA", "online travel agency", "travel tech"],
   },
   {
     id: "sports",
     label: "Sports",
-    category: "Sports",
-    descripcion: "Organizaciones deportivas y sports tech.",
-    surfe_industries: ["Sports", "Fantasy Sports", "eSports", "Fitness"],
-    serper_keywords: ["sports organization", "sports tech", "sports platform"],
+    category: "Vertical Industries",
+    descripcion: "Clubs, ligas, media deportivo, sportstech.",
+    surfe_industries: ["Sports", "Entertainment"],
+    serper_keywords: ["sports platform", "sportstech", "sports club", "sports league"],
+  },
+  {
+    id: "gambling",
+    label: "Gambling",
+    category: "Vertical Industries",
+    descripcion: "Gambling — casinos online, sportsbooks, lottery.",
+    surfe_industries: ["Gambling & Casinos"],
+    serper_keywords: ["online gambling", "sportsbook", "online casino", "igaming"],
   },
 
-  // ── Other ───────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  //  OTHER
+  // ══════════════════════════════════════════════════════════════════════
   {
     id: "other",
     label: "Other",
