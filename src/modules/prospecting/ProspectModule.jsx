@@ -7,6 +7,7 @@ import {
   saveContacts,  getContacts,  deleteContact,
 } from "../../services/prospectsService";
 import { groupByCategory } from "../../data/industriesDevengoSeed";
+import { pruneEmpty } from "../../utils/payload";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const REVENUES = ["0-1M", "1-10M", "10-50M", "50-100M", "100-500M", "500-1000M", ">1000M"];
@@ -602,29 +603,34 @@ export default function ProspectModule() {
 
     if (isLookalike) {
       // Payload Lookalike: cliente de referencia + filtros secundarios para post-filtrado.
+      // IMPORTANTE: pruneEmpty elimina strings vacíos y arrays vacíos del
+      // cliente_referencia para que en N8N el fallback `ref.x || filtSec.x`
+      // funcione correctamente (en JS `[] || x` devuelve `[]`, no `x`).
       const ref = clientes.find(c => c.nombre === lookalike) || null;
       return {
         modo: "lookalike",
         tipo: "empresa",
-        cliente_referencia: ref ? {
-          nombre:      ref.nombre      ?? "",
-          web:         ref.web         ?? "",
-          descripcion: ref.descripcion ?? "",
-          comentario:  ref.comentario  ?? "",
-          industria:   ref.industria   ?? "",
-          productos:   ref.productos   ?? [],
-          geografias:  ref.geografias  ?? [],
-          tamano:      ref.tamano      ?? "",
-          revenue:     ref.revenue     ?? "",
-        } : { nombre: lookalike },
-        filtros_secundarios: {
+        cliente_referencia: ref
+          ? pruneEmpty({
+              nombre:      ref.nombre,
+              web:         ref.web,
+              descripcion: ref.descripcion,
+              comentario:  ref.comentario,
+              industria:   ref.industria,
+              productos:   ref.productos,
+              geografias:  ref.geografias,
+              tamano:      ref.tamano,
+              revenue:     ref.revenue,
+            })
+          : { nombre: lookalike },
+        filtros_secundarios: pruneEmpty({
           industries_devengo: selectedDevengo.map(v => ({ id: v.id, label: v.label, category: v.category })),
           industrias_surfe:   mergedIndustries,
           geografias:         geos,
           tamanos:            tamanosSel,
           revenues,
           num_resultados:     numResults,
-        },
+        }, { keep: ["num_resultados"] }),
       };
     }
 

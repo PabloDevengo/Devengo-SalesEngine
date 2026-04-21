@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Search, ChevronDown, ChevronRight, Plus, Check, AlertCircle, Loader2 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { saveCompanies } from "../services/prospectsService";
+import { pruneEmpty } from "../utils/payload";
 
 // ── Results table ────────────────────────────────────────────────────────────
 function CompanyRow({ company, tipo, added, onAdd, showScore }) {
@@ -101,25 +102,31 @@ export default function DiscoverModal({ seed, onClose, onAddCompetidor }) {
   // Mismo esquema unificado que ProspectModule (modo: "lookalike") para que
   // Vicente pueda reusar el workflow N8N de lookalike en ambas entradas.
   function buildPayload() {
-    const ref = tipo === "cliente"
-      ? {
-          nombre:      data.nombre      ?? "",
-          web:         data.web         ?? "",
-          descripcion: data.descripcion ?? "",
-          comentario:  data.comentario  ?? "",
-          industria:   data.industria   ?? "",
-          productos:   data.productos   ?? [],
-          geografias:  data.geografias  ?? [],
-          tamano:      data.tamano      ?? "",
-          revenue:     data.revenue     ?? "",
-        }
-      : {
-          nombre:      data.nombre      ?? "",
-          web:         data.web         ?? "",
-          descripcion: data.descripcion ?? "",
-          producto:    data.producto    ?? "",
-          geografias:  data.geografias  ?? [],
-        };
+    // pruneEmpty elimina strings vacíos y arrays vacíos del cliente_referencia
+    // para que el fallback en N8N (ref.x || filtros_secundarios.x) funcione
+    // correctamente. En JS `[] || x` devuelve `[]` porque el array vacío es
+    // truthy, así que es imprescindible omitir la key por completo.
+    const ref = pruneEmpty(
+      tipo === "cliente"
+        ? {
+            nombre:      data.nombre,
+            web:         data.web,
+            descripcion: data.descripcion,
+            comentario:  data.comentario,
+            industria:   data.industria,
+            productos:   data.productos,
+            geografias:  data.geografias,
+            tamano:      data.tamano,
+            revenue:     data.revenue,
+          }
+        : {
+            nombre:      data.nombre,
+            web:         data.web,
+            descripcion: data.descripcion,
+            producto:    data.producto,
+            geografias:  data.geografias,
+          }
+    );
     return {
       modo: "lookalike",
       tipo: "empresa",
